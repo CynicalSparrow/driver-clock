@@ -6,6 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230f172a'/%3E%3Crect x='24' y='24' width='464' height='464' rx='92' fill='none' stroke='%2310b981' stroke-width='16'/%3E%3Ccircle cx='256' cy='230' r='128' fill='%231e293b' stroke='%2338bdf8' stroke-width='18'/%3E%3Cpath d='M256 138v92l64 38' fill='none' stroke='%2310b981' stroke-width='22' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='256' cy='230' r='14' fill='%23f8fafc'/%3E%3Crect x='116' y='392' width='280' height='54' rx='14' fill='%2310b981'/%3E%3Ctext x='256' y='429' font-family='monospace,sans-serif' font-size='34' font-weight='900' fill='%23052e16' text-anchor='middle'%3E11H GB DUTY%3C/text%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230f172a'/%3E%3Crect x='24' y='24' width='464' height='464' rx='92' fill='none' stroke='%2310b981' stroke-width='16'/%3E%3Ccircle cx='256' cy='230' r='128' fill='%231e293b' stroke='%2338bdf8' stroke-width='18'/%3E%3Cpath d='M256 138v92l64 38' fill='none' stroke='%2310b981' stroke-width='22' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='256' cy='230' r='14' fill='%23f8fafc'/%3E%3Crect x='116' y='392' width='280' height='54' rx='14' fill='%2310b981'/%3E%3Ctext x='256' y='429' font-family='monospace,sans-serif' font-size='34' font-weight='900' fill='%23052e16' text-anchor='middle'%3E11H GB DUTY%3C/text%3E%3C/svg%3E" />
   <title>GB Driver Duty Clock</title>
   <style>
     :root {
@@ -46,7 +49,6 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* Header */
     header {
       display: flex;
       justify-content: space-between;
@@ -56,12 +58,25 @@
       border-bottom: 1px solid var(--card-border);
     }
     .app-title {
-      font-size: 1.05rem;
+      font-size: 1.02rem;
       font-weight: 800;
       letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .offline-pill {
+      font-size: 0.62rem;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: rgba(16, 185, 129, 0.18);
+      color: #34d399;
+      border: 1px solid var(--green);
+      font-weight: 700;
+      display: none;
     }
     .app-sub {
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       color: var(--muted);
     }
     .rule-toggle {
@@ -75,7 +90,6 @@
       cursor: pointer;
     }
 
-    /* Status Pill */
     .status-bar {
       display: flex;
       justify-content: space-between;
@@ -105,7 +119,6 @@
     .dot.lunch { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
     .dot.rest { background: var(--amber); }
 
-    /* Hero Timer Card */
     .hero-card {
       border-radius: 16px;
       padding: 18px 16px;
@@ -115,26 +128,13 @@
       text-align: center;
       transition: background 0.25s, border-color 0.25s;
     }
-    .hero-card.theme-green {
-      background: var(--green-bg);
-      border-color: var(--green);
-    }
-    .hero-card.theme-amber {
-      background: var(--amber-bg);
-      border-color: var(--amber);
-    }
-    .hero-card.theme-red {
-      background: var(--red-bg);
-      border-color: var(--red);
-    }
+    .hero-card.theme-green { background: var(--green-bg); border-color: var(--green); }
+    .hero-card.theme-amber { background: var(--amber-bg); border-color: var(--amber); }
+    .hero-card.theme-red { background: var(--red-bg); border-color: var(--red); }
     .hero-card.theme-breach {
       background: rgba(220, 38, 38, 0.28);
       border-color: #ff4d4d;
       animation: pulse-breach 1.2s infinite;
-    }
-    .hero-card.theme-blue {
-      background: var(--blue-bg);
-      border-color: var(--blue);
     }
 
     @keyframes pulse-breach {
@@ -166,7 +166,6 @@
       display: inline-block;
     }
 
-    /* Secondary Ceiling Grid */
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -196,7 +195,6 @@
       margin-top: 3px;
     }
 
-    /* Lunch Shield Banner */
     .lunch-banner {
       background: var(--blue-bg);
       border: 1px solid var(--blue);
@@ -218,10 +216,7 @@
       text-transform: uppercase;
     }
 
-    /* Primary Action Buttons */
-    .action-area {
-      margin-bottom: 14px;
-    }
+    .action-area { margin-bottom: 14px; }
     .btn-main {
       width: 100%;
       padding: 16px;
@@ -248,7 +243,6 @@
       font-size: 0.9rem;
     }
 
-    /* Clocks & Manual Edit List */
     .section-card {
       background: var(--card);
       border: 1px solid var(--card-border);
@@ -274,27 +268,11 @@
       padding: 10px 0;
       border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     }
-    .clock-row:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-    .clock-name {
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-    .clock-sub {
-      font-size: 0.72rem;
-      color: var(--muted);
-    }
-    .clock-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .clock-time {
-      font-size: 0.98rem;
-      font-weight: 700;
-    }
+    .clock-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .clock-name { font-size: 0.9rem; font-weight: 600; }
+    .clock-sub { font-size: 0.72rem; color: var(--muted); }
+    .clock-right { display: flex; align-items: center; gap: 8px; }
+    .clock-time { font-size: 0.98rem; font-weight: 700; }
     .btn-edit {
       background: #334155;
       color: #e2e8f0;
@@ -306,7 +284,6 @@
       cursor: pointer;
     }
 
-    /* Edit Modal */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -325,15 +302,8 @@
       width: 100%;
       max-width: 380px;
     }
-    .modal h3 {
-      font-size: 1rem;
-      margin-bottom: 6px;
-    }
-    .modal p {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-bottom: 12px;
-    }
+    .modal h3 { font-size: 1rem; margin-bottom: 6px; }
+    .modal p { font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; }
     .modal input {
       width: 100%;
       padding: 12px;
@@ -346,10 +316,7 @@
       text-align: center;
       margin-bottom: 14px;
     }
-    .modal-actions {
-      display: flex;
-      gap: 8px;
-    }
+    .modal-actions { display: flex; gap: 8px; }
     .modal-actions button {
       flex: 1;
       padding: 11px;
@@ -359,7 +326,6 @@
       cursor: pointer;
     }
 
-    /* History Logbook */
     .history-item {
       background: rgba(15, 23, 42, 0.55);
       border: 1px solid var(--card-border);
@@ -373,10 +339,7 @@
       align-items: center;
       margin-bottom: 6px;
     }
-    .history-date {
-      font-size: 0.82rem;
-      font-weight: 700;
-    }
+    .history-date { font-size: 0.82rem; font-weight: 700; }
     .badge {
       padding: 3px 8px;
       border-radius: 6px;
@@ -386,11 +349,7 @@
     }
     .badge-legal { background: var(--green-bg); color: #34d399; border: 1px solid var(--green); }
     .badge-breach { background: var(--red-bg); color: #f87171; border: 1px solid var(--red); }
-    .history-details {
-      font-size: 0.76rem;
-      color: var(--muted);
-      line-height: 1.45;
-    }
+    .history-details { font-size: 0.76rem; color: var(--muted); line-height: 1.45; }
     .btn-small {
       background: #334155;
       color: var(--text);
@@ -407,7 +366,10 @@
 
   <header>
     <div>
-      <div class="app-title">GB Domestic Duty Clock</div>
+      <div class="app-title">
+        <span>GB Duty Clock</span>
+        <span class="offline-pill" id="offlinePill">OFFLINE READY</span>
+      </div>
       <div class="app-sub">11h Max Duty • 1h Unpaid Lunch • WTR Break</div>
     </div>
     <button class="rule-toggle" id="breakRuleBtn" onclick="toggleBreakRule()">
@@ -423,7 +385,6 @@
     <div class="mono" id="wallClock" style="font-size:0.85rem; color:var(--muted);">00:00:00</div>
   </div>
 
-  <!-- Unbroken 1h Lunch Shield Banner (shown during the 60m after tapping Lunch) -->
   <div class="lunch-banner" id="lunchBanner">
     <div class="lunch-banner-header">
       <span class="lunch-title">Unbroken 1h Lunch In Progress</span>
@@ -434,14 +395,12 @@
     </div>
   </div>
 
-  <!-- Primary Countdown Card -->
   <div class="hero-card" id="heroCard">
     <div class="hero-label" id="heroLabel">Awaiting Shift Start</div>
     <div class="hero-timer mono" id="heroTimer">11:00:00</div>
     <div class="hero-deadline mono" id="heroDeadline">Tap "Clock In" when starting shift</div>
   </div>
 
-  <!-- Secondary Legal Indicators -->
   <div class="grid-2">
     <div class="sub-card">
       <div class="sub-label" id="sub1Label">Legal Clock-Out Ceiling</div>
@@ -455,12 +414,10 @@
     </div>
   </div>
 
-  <!-- Primary Tap Action -->
   <div class="action-area" id="actionArea">
     <button class="btn-main btn-start" onclick="clockStart()">CLOCK IN (START SHIFT)</button>
   </div>
 
-  <!-- Timestamps & Compulsory Manual Edit -->
   <div class="section-card">
     <div class="section-title">
       <span>Shift Clocks (To The Second)</span>
@@ -512,7 +469,6 @@
     </div>
   </div>
 
-  <!-- Personal Shift History Logbook -->
   <div class="section-card">
     <div class="section-title">
       <span>Personal Shift Logbook</span>
@@ -524,7 +480,6 @@
     <div id="historyList"></div>
   </div>
 
-  <!-- Manual Edit Modal -->
   <div class="modal-backdrop" id="editModal">
     <div class="modal">
       <h3 id="modalTitle">Edit Clock Time</h3>
@@ -538,16 +493,25 @@
   </div>
 
   <script>
-    const DUTY_LIMIT_SEC = 11 * 3600;       // 11h 00m 00s GB Domestic Max Duty
-    const STD_REST_SEC = 11 * 3600;         // 11h 00m 00s Daily Rest
-    const RED_REST_SEC = 9 * 3600;          // 9h 00m 00s Reduced Rest
+    // Register Offline Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(() => {
+          document.getElementById('offlinePill').style.display = 'inline-block';
+        }).catch(() => {});
+      });
+    }
+
+    const DUTY_LIMIT_SEC = 11 * 3600;
+    const STD_REST_SEC = 11 * 3600;
+    const RED_REST_SEC = 9 * 3600;
 
     let state = {
-      startTime: null,          // Epoch ms
-      lunchTime: null,          // Epoch ms
-      endTime: null,            // Epoch ms
-      breakDeductionSec: 3600,  // Default 1h (3600s) unbroken lunch
-      maxContWorkSec: 6 * 3600, // 6h WTR default (toggleable to 5.5h)
+      startTime: null,
+      lunchTime: null,
+      endTime: null,
+      breakDeductionSec: 3600,
+      maxContWorkSec: 6 * 3600,
       savedToHistory: false
     };
 
@@ -586,7 +550,6 @@
         : 'Break Limit: 5h 30m';
     }
 
-    // Format helpers
     function pad(n) { return String(Math.floor(Math.abs(n))).padStart(2, '0'); }
 
     function formatHMS(sec, showPlus = false) {
@@ -609,20 +572,14 @@
       if (!state.startTime) return 0;
       const refEnd = state.endTime || nowMs;
       const totalElapsedSec = Math.max(0, (refEnd - state.startTime) / 1000);
-
-      if (!state.lunchTime) {
-        return totalElapsedSec;
-      }
-
+      if (!state.lunchTime) return totalElapsedSec;
       const sinceLunchSec = Math.max(0, (refEnd - state.lunchTime) / 1000);
       const breakTakenSoFar = Math.min(state.breakDeductionSec, sinceLunchSec);
       return Math.max(0, totalElapsedSec - breakTakenSoFar);
     }
 
-    // Core Actions
     function clockStart() {
-      const now = Date.now();
-      state.startTime = now;
+      state.startTime = Date.now();
       state.lunchTime = null;
       state.endTime = null;
       state.breakDeductionSec = 3600;
@@ -663,7 +620,7 @@
         ? Math.max(0, (state.lunchTime - state.startTime) / 1000)
         : netDutySec;
 
-      const dutyDiff = DUTY_LIMIT_SEC - netDutySec; // >=0 legal, <0 breach
+      const dutyDiff = DUTY_LIMIT_SEC - netDutySec;
       const breakDiff = state.maxContWorkSec - preLunchSec;
       const isLegal = (dutyDiff >= 0) && (breakDiff >= 0);
 
@@ -688,11 +645,8 @@
       };
 
       const existingIdx = history.findIndex(h => h.id === state.startTime);
-      if (existingIdx >= 0) {
-        history[existingIdx] = entry;
-      } else {
-        history.unshift(entry);
-      }
+      if (existingIdx >= 0) history[existingIdx] = entry;
+      else history.unshift(entry);
       state.savedToHistory = true;
       saveData();
       renderHistory();
@@ -700,22 +654,15 @@
 
     function applyTheme(card, remSec) {
       card.className = 'hero-card';
-      if (remSec < 0) {
-        card.classList.add('theme-breach');
-      } else if (remSec <= 600) {
-        card.classList.add('theme-red');
-      } else if (remSec <= 1800) {
-        card.classList.add('theme-amber');
-      } else {
-        card.classList.add('theme-green');
-      }
+      if (remSec < 0) card.classList.add('theme-breach');
+      else if (remSec <= 600) card.classList.add('theme-red');
+      else if (remSec <= 1800) card.classList.add('theme-amber');
+      else card.classList.add('theme-green');
     }
 
     function tick() {
       const now = Date.now();
       document.getElementById('wallClock').textContent = formatWallClock(now);
-
-      // Update Clock Row Displays
       document.getElementById('dispStart').textContent = formatWallClock(state.startTime);
       document.getElementById('dispLunch').textContent = formatWallClock(state.lunchTime);
       document.getElementById('dispBreakDed').textContent = formatHMS(state.breakDeductionSec);
@@ -737,7 +684,6 @@
       const sub2Value = document.getElementById('sub2Value');
       const sub2Meta = document.getElementById('sub2Meta');
 
-      // CASE 0: No active shift
       if (!state.startTime) {
         heroCard.className = 'hero-card';
         statusDot.className = 'dot';
@@ -762,7 +708,6 @@
       const projectedMaxClockOutMs = state.startTime + (DUTY_LIMIT_SEC + state.breakDeductionSec) * 1000;
       const raw11hCeilingMs = state.startTime + DUTY_LIMIT_SEC * 1000;
 
-      // CASE 1: Shift Started, Lunch NOT yet clocked
       if (state.startTime && !state.lunchTime && !state.endTime) {
         statusDot.className = 'dot active';
         statusText.textContent = 'On Duty (Pre-Lunch)';
@@ -778,13 +723,11 @@
         heroTimer.textContent = formatHMS(breakRemSec);
         heroDeadline.textContent = `Must start lunch by ${formatWallClock(mandatoryBreakDeadlineMs)}`;
 
-        // Secondary Panel 1: Duty Ceiling
         const dutyRemWithLunchSec = (projectedMaxClockOutMs - now) / 1000;
         sub1Label.textContent = '11h Duty Ceiling (w/ 1h Lunch)';
         sub1Value.textContent = formatWallClock(projectedMaxClockOutMs);
         sub1Meta.textContent = `${formatHMS(dutyRemWithLunchSec)} left (Raw 11h: ${formatWallClock(raw11hCeilingMs)})`;
 
-        // Secondary Panel 2: Net Duty Worked
         sub2Label.textContent = 'Continuous Duty Worked';
         sub2Value.textContent = formatHMS(netDutySec);
         sub2Meta.textContent = `${formatHMS(DUTY_LIMIT_SEC - netDutySec)} of 11h duty left`;
@@ -796,7 +739,6 @@
         return;
       }
 
-      // Audit Pre-Lunch continuous work whenever lunch is set
       if (state.lunchTime) {
         const preLunchSec = Math.max(0, (state.lunchTime - state.startTime) / 1000);
         const preDiff = state.maxContWorkSec - preLunchSec;
@@ -808,7 +750,6 @@
         }
       }
 
-      // CASE 2: Lunch Clocked, Shift NOT yet ended
       if (state.startTime && state.lunchTime && !state.endTime) {
         const lunchEndMs = state.lunchTime + state.breakDeductionSec * 1000;
         const lunchRemSec = (lunchEndMs - now) / 1000;
@@ -852,7 +793,6 @@
         return;
       }
 
-      // CASE 3: Shift Ended -> Show Verdict + Daily Rest Countdown
       if (state.startTime && state.endTime) {
         lunchBanner.style.display = 'none';
         statusDot.className = 'dot rest';
@@ -898,7 +838,6 @@
       }
     }
 
-    // Manual Time Edit Modal Logic
     function openEditModal(field) {
       editingField = field;
       const modal = document.getElementById('editModal');
@@ -953,7 +892,6 @@
         d.setHours(parts.h, parts.m, parts.s, 0);
         let targetMs = d.getTime();
 
-        // Handle overnight shift wrap-around automatically
         if (editingField !== 'start' && state.startTime && targetMs < state.startTime) {
           targetMs += 24 * 3600 * 1000;
         }
@@ -963,22 +901,19 @@
         if (editingField === 'end') state.endTime = targetMs;
       }
 
-      if (state.startTime && state.endTime) {
-        recordOrUpdateHistory();
-      }
+      if (state.startTime && state.endTime) recordOrUpdateHistory();
       saveData();
       closeEditModal();
       tick();
     }
 
-    // Shift History Rendering & CSV Export
     function renderHistory() {
       const container = document.getElementById('historyList');
       if (!history.length) {
         container.innerHTML = `<div style="font-size:0.8rem; color:var(--muted); text-align:center; padding:12px;">No shifts logged yet. Completed shifts save here automatically.</div>`;
         return;
       }
-      container.innerHTML = history.map((item, idx) => `
+      container.innerHTML = history.map(item => `
         <div class="history-item">
           <div class="history-top">
             <span class="history-date">${item.dateStr}</span>
