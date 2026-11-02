@@ -2,13 +2,15 @@
 <html lang="en-GB">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Driver Clock" />
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="./manifest.json" />
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230f172a'/%3E%3Crect x='24' y='24' width='464' height='464' rx='92' fill='none' stroke='%2310b981' stroke-width='16'/%3E%3Ccircle cx='256' cy='230' r='128' fill='%231e293b' stroke='%2338bdf8' stroke-width='18'/%3E%3Cpath d='M256 138v92l64 38' fill='none' stroke='%2310b981' stroke-width='22' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='256' cy='230' r='14' fill='%23f8fafc'/%3E%3Crect x='116' y='392' width='280' height='54' rx='14' fill='%2310b981'/%3E%3Ctext x='256' y='429' font-family='monospace,sans-serif' font-size='34' font-weight='900' fill='%23052e16' text-anchor='middle'%3E11H GB DUTY%3C/text%3E%3C/svg%3E" />
-  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230f172a'/%3E%3Crect x='24' y='24' width='464' height='464' rx='92' fill='none' stroke='%2310b981' stroke-width='16'/%3E%3Ccircle cx='256' cy='230' r='128' fill='%231e293b' stroke='%2338bdf8' stroke-width='18'/%3E%3Cpath d='M256 138v92l64 38' fill='none' stroke='%2310b981' stroke-width='22' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='256' cy='230' r='14' fill='%23f8fafc'/%3E%3Crect x='116' y='392' width='280' height='54' rx='14' fill='%2310b981'/%3E%3Ctext x='256' y='429' font-family='monospace,sans-serif' font-size='34' font-weight='900' fill='%23052e16' text-anchor='middle'%3E11H GB DUTY%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>GB Driver Duty Clock</title>
   <style>
     :root {
@@ -38,11 +40,13 @@
     body {
       background-color: var(--bg);
       color: var(--text);
-      padding: 14px;
-      padding-bottom: 40px;
+      padding: calc(14px + env(safe-area-inset-top)) 14px calc(90px + env(safe-area-inset-bottom));
       max-width: 500px;
       margin: 0 auto;
     }
+
+    button { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+    button:disabled { opacity: 0.55; }
 
     .mono {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
@@ -57,309 +61,170 @@
       padding-bottom: 10px;
       border-bottom: 1px solid var(--card-border);
     }
-    .app-title {
-      font-size: 1.02rem;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .app-title { font-size: 1.02rem; font-weight: 800; letter-spacing: -0.3px; display: flex; align-items: center; gap: 6px; }
     .offline-pill {
-      font-size: 0.62rem;
-      padding: 2px 6px;
-      border-radius: 5px;
-      background: rgba(16, 185, 129, 0.18);
-      color: #34d399;
-      border: 1px solid var(--green);
-      font-weight: 700;
-      display: none;
+      font-size: 0.62rem; padding: 2px 6px; border-radius: 5px;
+      background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid var(--green);
+      font-weight: 700; display: none;
     }
-    .app-sub {
-      font-size: 0.74rem;
-      color: var(--muted);
-    }
-    .rule-toggle {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      color: var(--text);
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      cursor: pointer;
+    .app-sub { font-size: 0.74rem; color: var(--muted); }
+    .btn-ghost {
+      background: var(--card); border: 1px solid var(--card-border); color: var(--text);
+      padding: 6px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer;
     }
 
     .status-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      padding: 10px 12px;
-      margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--card); border: 1px solid var(--card-border);
+      border-radius: 10px; padding: 10px 12px; margin-bottom: 12px;
     }
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: var(--muted);
-    }
+    .status-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
     .dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); }
-    .dot.lunch { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
-    .dot.rest { background: var(--amber); }
+    .dot.break { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+    .dot.done { background: var(--amber); }
+
+    /* Three-step strip: Until break → Break → Until finish */
+    .steps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+    .step {
+      background: var(--card); border: 1px solid var(--card-border); border-radius: 10px;
+      padding: 7px 8px; text-align: center; color: var(--muted);
+    }
+    .step .step-name { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; display: block; }
+    .step .step-val { font-size: 0.95rem; font-weight: 800; display: block; margin-top: 2px; }
+    .step.current { border-color: var(--text); color: var(--text); background: #273449; }
+    .step.past { opacity: 0.55; }
+    .step.past .step-name::before { content: "✓ "; }
 
     .hero-card {
-      border-radius: 16px;
-      padding: 18px 16px;
-      margin-bottom: 12px;
-      border: 2px solid var(--card-border);
-      background: var(--card);
-      text-align: center;
+      border-radius: 16px; padding: 18px 16px; margin-bottom: 12px;
+      border: 2px solid var(--card-border); background: var(--card); text-align: center;
       transition: background 0.25s, border-color 0.25s;
     }
     .hero-card.theme-green { background: var(--green-bg); border-color: var(--green); }
+    .hero-card.theme-blue { background: var(--blue-bg); border-color: var(--blue); }
     .hero-card.theme-amber { background: var(--amber-bg); border-color: var(--amber); }
     .hero-card.theme-red { background: var(--red-bg); border-color: var(--red); }
-    .hero-card.theme-breach {
-      background: rgba(220, 38, 38, 0.28);
-      border-color: #ff4d4d;
-      animation: pulse-breach 1.2s infinite;
-    }
-
+    .hero-card.theme-breach { background: rgba(220, 38, 38, 0.28); border-color: #ff4d4d; animation: pulse-breach 1.2s infinite; }
     @keyframes pulse-breach {
       0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
       50% { box-shadow: 0 0 18px 4px rgba(239, 68, 68, 0.45); }
     }
-
-    .hero-label {
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    .hero-timer {
-      font-size: 3.1rem;
-      font-weight: 800;
-      line-height: 1.05;
-      letter-spacing: -1px;
-      margin-bottom: 8px;
-    }
+    .hero-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #cbd5e1; margin-bottom: 6px; }
+    .hero-timer { font-size: 3.4rem; font-weight: 800; line-height: 1.05; letter-spacing: -1px; margin-bottom: 8px; }
     .hero-deadline {
-      font-size: 0.92rem;
-      font-weight: 600;
-      padding: 6px 10px;
-      border-radius: 8px;
-      background: rgba(15, 23, 42, 0.55);
-      display: inline-block;
+      font-size: 0.95rem; font-weight: 600; padding: 6px 10px; border-radius: 8px;
+      background: rgba(15, 23, 42, 0.55); display: inline-block;
     }
+    .hero-notes { margin-top: 8px; font-size: 0.78rem; color: #e2e8f0; line-height: 1.45; }
+    .hero-notes:empty { display: none; }
+    .note-warn { color: #fbbf24; }
+    .note-bad { color: #f87171; }
+    .note-ok { color: #34d399; }
 
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .sub-card {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 12px;
-    }
-    .sub-label {
-      font-size: 0.72rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .sub-value {
-      font-size: 1.25rem;
-      font-weight: 800;
-    }
-    .sub-meta {
-      font-size: 0.75rem;
-      color: var(--muted);
-      margin-top: 3px;
-    }
-
-    .lunch-banner {
-      background: var(--blue-bg);
-      border: 1px solid var(--blue);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 12px;
-      display: none;
-    }
-    .lunch-banner-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 4px;
-    }
-    .lunch-title {
-      font-size: 0.8rem;
-      font-weight: 800;
-      color: #93c5fd;
-      text-transform: uppercase;
-    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .sub-card { background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; }
+    .sub-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+    .sub-value { font-size: 1.3rem; font-weight: 800; }
+    .sub-meta { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
 
     .action-area { margin-bottom: 14px; }
     .btn-main {
-      width: 100%;
-      padding: 16px;
-      border-radius: 14px;
-      border: none;
-      font-size: 1.1rem;
-      font-weight: 800;
-      color: #fff;
-      cursor: pointer;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 8px;
+      position: relative; overflow: hidden;
+      width: 100%; padding: 18px; border-radius: 14px; border: none;
+      font-size: 1.1rem; font-weight: 800; color: #fff; cursor: pointer;
+      display: flex; justify-content: center; align-items: center; gap: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     }
+    .btn-main + .btn-main { margin-top: 8px; }
+    .btn-main.small { padding: 12px; font-size: 0.92rem; }
     .btn-start { background: var(--green); color: #052e16; }
-    .btn-lunch { background: var(--amber); color: #451a03; }
+    .btn-break { background: var(--amber); color: #451a03; }
     .btn-end { background: var(--red); color: #fff; }
-    .btn-reset {
-      background: #334155;
-      color: var(--text);
-      margin-top: 8px;
-      padding: 11px;
-      font-size: 0.9rem;
-    }
+    .btn-plain { background: #334155; color: var(--text); }
+    .btn-main .label { position: relative; z-index: 1; }
+    .btn-main.hold { touch-action: none; }
+    .hold-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(0, 0, 0, 0.3); }
 
-    .section-card {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 14px;
-    }
+    .section-card { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
     .section-title {
-      font-size: 0.82rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--muted);
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      font-size: 0.82rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);
+      margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px;
     }
     .clock-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     }
     .clock-row:last-child { border-bottom: none; padding-bottom: 0; }
     .clock-name { font-size: 0.9rem; font-weight: 600; }
     .clock-sub { font-size: 0.72rem; color: var(--muted); }
     .clock-right { display: flex; align-items: center; gap: 8px; }
-    .clock-time { font-size: 0.98rem; font-weight: 700; }
+    .clock-time { font-size: 1rem; font-weight: 700; }
     .btn-edit {
-      background: #334155;
-      color: #e2e8f0;
-      border: 1px solid #475569;
-      padding: 5px 9px;
-      border-radius: 7px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
+      background: #334155; color: #e2e8f0; border: 1px solid #475569;
+      padding: 6px 10px; border-radius: 7px; font-size: 0.75rem; font-weight: 600; cursor: pointer;
     }
 
     .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.75);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      padding: 16px;
-      z-index: 100;
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75);
+      display: none; justify-content: center; align-items: center; padding: 16px; z-index: 100;
     }
+    .modal-backdrop.open { display: flex; }
     .modal {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 18px;
-      width: 100%;
-      max-width: 380px;
+      background: var(--card); border: 1px solid var(--card-border); border-radius: 16px;
+      padding: 18px; width: 100%; max-width: 380px; max-height: 90vh; overflow-y: auto;
     }
     .modal h3 { font-size: 1rem; margin-bottom: 6px; }
-    .modal p { font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; }
-    .modal input {
-      width: 100%;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid var(--card-border);
-      background: var(--bg);
-      color: var(--text);
-      font-size: 1.2rem;
-      font-weight: 700;
-      text-align: center;
-      margin-bottom: 14px;
+    .modal p { font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; line-height: 1.4; }
+    .modal input[type="time"], .modal input[type="number"] {
+      width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--card-border);
+      background: var(--bg); color: var(--text); font-size: 1.2rem; font-weight: 700; text-align: center;
+      color-scheme: dark;
     }
+    .modal .quick { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 14px; }
+    .modal .quick button { flex: 1; }
+    .modal .error { color: #f87171; font-size: 0.8rem; margin-bottom: 10px; min-height: 1em; }
     .modal-actions { display: flex; gap: 8px; }
-    .modal-actions button {
-      flex: 1;
-      padding: 11px;
-      border-radius: 10px;
-      border: none;
-      font-weight: 700;
-      cursor: pointer;
-    }
+    .modal-actions button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; font-size: 0.95rem; }
+    .btn-cancel { background: #334155; color: #fff; }
+    .btn-save { background: var(--blue); color: #fff; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+    .field .hint { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+    .check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; margin-bottom: 12px; }
+    .check input { width: 20px; height: 20px; }
 
     .history-item {
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      padding: 11px;
-      margin-bottom: 8px;
+      background: rgba(15, 23, 42, 0.55); border: 1px solid var(--card-border);
+      border-radius: 10px; padding: 11px; margin-bottom: 8px;
     }
-    .history-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-    }
+    .history-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 6px; }
     .history-date { font-size: 0.82rem; font-weight: 700; }
-    .badge {
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-size: 0.7rem;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
+    .badge { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
     .badge-legal { background: var(--green-bg); color: #34d399; border: 1px solid var(--green); }
     .badge-breach { background: var(--red-bg); color: #f87171; border: 1px solid var(--red); }
-    .history-details { font-size: 0.76rem; color: var(--muted); line-height: 1.45; }
+    .history-details { font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
     .btn-small {
-      background: #334155;
-      color: var(--text);
-      border: none;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      cursor: pointer;
+      background: #334155; color: var(--text); border: none; padding: 6px 10px;
+      border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
     }
+    .btn-x { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 0 4px; }
+    .backup-line { font-size: 0.75rem; color: var(--muted); margin-bottom: 10px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .backup-line.stale { color: #fbbf24; }
+    .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .footnote { font-size: 0.7rem; color: var(--muted); line-height: 1.5; text-align: center; padding: 0 8px; }
+
+    .toast {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: calc(16px + env(safe-area-inset-bottom));
+      width: calc(100% - 28px); max-width: 472px;
+      background: #f8fafc; color: #0f172a; border-radius: 12px; padding: 12px 14px;
+      display: none; justify-content: space-between; align-items: center; gap: 10px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45); z-index: 90; font-size: 0.88rem; font-weight: 600;
+    }
+    .toast.show { display: flex; }
+    .toast button { background: #0f172a; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-weight: 800; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -370,130 +235,137 @@
         <span>GB Duty Clock</span>
         <span class="offline-pill" id="offlinePill">OFFLINE READY</span>
       </div>
-      <div class="app-sub">11h Max Duty • 1h Unpaid Lunch • WTR Break</div>
+      <div class="app-sub" id="appSub">11h max duty</div>
     </div>
-    <button class="rule-toggle" id="breakRuleBtn" onclick="toggleBreakRule()">
-      Break Limit: 6h 00m
-    </button>
+    <button class="btn-ghost" id="settingsBtn">Settings</button>
   </header>
 
   <div class="status-bar">
     <div class="status-badge">
       <span class="dot" id="statusDot"></span>
-      <span id="statusText">Off Duty / Ready</span>
+      <span id="statusText">Off duty</span>
     </div>
     <div class="mono" id="wallClock" style="font-size:0.85rem; color:var(--muted);">00:00:00</div>
   </div>
 
-  <div class="lunch-banner" id="lunchBanner">
-    <div class="lunch-banner-header">
-      <span class="lunch-title">Unbroken 1h Lunch In Progress</span>
-      <span class="mono" id="lunchCountdown" style="font-weight:800; color:#fff;">60:00</span>
-    </div>
-    <div style="font-size:0.75rem; color:#cbd5e1;">
-      Ends at <strong class="mono" id="lunchEndsAt">--:--:--</strong>. Any manager interruption counts as duty time.
-    </div>
+  <div class="steps">
+    <div class="step" id="step1"><span class="step-name">Until break</span><span class="step-val mono" id="step1Val">--:--</span></div>
+    <div class="step" id="step2"><span class="step-name">Break</span><span class="step-val mono" id="step2Val">60m</span></div>
+    <div class="step" id="step3"><span class="step-name">Until finish</span><span class="step-val mono" id="step3Val">--:--</span></div>
   </div>
 
   <div class="hero-card" id="heroCard">
-    <div class="hero-label" id="heroLabel">Awaiting Shift Start</div>
-    <div class="hero-timer mono" id="heroTimer">11:00:00</div>
-    <div class="hero-deadline mono" id="heroDeadline">Tap "Clock In" when starting shift</div>
+    <div class="hero-label" id="heroLabel">Off duty</div>
+    <div class="hero-timer mono" id="heroTimer">Ready</div>
+    <div class="hero-deadline mono" id="heroDeadline">--</div>
+    <div class="hero-notes" id="heroNotes"></div>
   </div>
 
   <div class="grid-2">
     <div class="sub-card">
-      <div class="sub-label" id="sub1Label">Legal Clock-Out Ceiling</div>
-      <div class="sub-value mono" id="sub1Value">--:--:--</div>
-      <div class="sub-meta" id="sub1Meta">With 1h unbroken lunch</div>
+      <div class="sub-label" id="cardALabel">Must clock out by</div>
+      <div class="sub-value mono" id="cardAValue">--:--</div>
+      <div class="sub-meta" id="cardAMeta"></div>
     </div>
     <div class="sub-card">
-      <div class="sub-label" id="sub2Label">Net Duty Worked</div>
-      <div class="sub-value mono" id="sub2Value">00:00:00</div>
-      <div class="sub-meta" id="sub2Meta">Max 11:00:00 allowed</div>
+      <div class="sub-label" id="cardBLabel">Duty so far</div>
+      <div class="sub-value mono" id="cardBValue">0:00:00</div>
+      <div class="sub-meta" id="cardBMeta"></div>
     </div>
   </div>
 
-  <div class="action-area" id="actionArea">
-    <button class="btn-main btn-start" onclick="clockStart()">CLOCK IN (START SHIFT)</button>
-  </div>
+  <div class="action-area" id="actionArea"></div>
 
   <div class="section-card">
     <div class="section-title">
-      <span>Shift Clocks (To The Second)</span>
-      <span style="font-size:0.7rem; color:#60a5fa;">Tap Edit to adjust</span>
+      <span>Today's times</span>
+      <span style="font-size:0.7rem; color:#60a5fa; text-transform:none;">Edit if anything's wrong</span>
     </div>
-
     <div class="clock-row">
-      <div>
-        <div class="clock-name">1. Start Shift</div>
-        <div class="clock-sub">Duty clock starts</div>
-      </div>
-      <div class="clock-right">
-        <span class="clock-time mono" id="dispStart">--:--:--</span>
-        <button class="btn-edit" onclick="openEditModal('start')">Edit</button>
-      </div>
+      <div><div class="clock-name">Clocked in</div><div class="clock-sub" id="tlInSub">Duty starts when you start work</div></div>
+      <div class="clock-right"><span class="clock-time mono" id="tlIn">--:--</span><button class="btn-edit" data-edit="clockIn">Edit</button></div>
     </div>
-
     <div class="clock-row">
-      <div>
-        <div class="clock-name">2. Lunch Clock</div>
-        <div class="clock-sub" id="preLunchAudit">Unbroken break start</div>
-      </div>
-      <div class="clock-right">
-        <span class="clock-time mono" id="dispLunch">--:--:--</span>
-        <button class="btn-edit" onclick="openEditModal('lunch')">Edit</button>
-      </div>
+      <div><div class="clock-name">Break started</div><div class="clock-sub" id="tlBsSub">Starts automatically at planned time</div></div>
+      <div class="clock-right"><span class="clock-time mono" id="tlBs">--:--</span><button class="btn-edit" data-edit="breakStart">Edit</button></div>
     </div>
-
     <div class="clock-row">
-      <div>
-        <div class="clock-name">Unbroken Break Deduction</div>
-        <div class="clock-sub">Reduce if manager interrupted</div>
-      </div>
-      <div class="clock-right">
-        <span class="clock-time mono" id="dispBreakDed">01:00:00</span>
-        <button class="btn-edit" onclick="openEditModal('breakDed')">Edit</button>
-      </div>
+      <div><div class="clock-name">Back on duty</div><div class="clock-sub" id="tlBeSub">Edit if break was cut short</div></div>
+      <div class="clock-right"><span class="clock-time mono" id="tlBe">--:--</span><button class="btn-edit" data-edit="breakEnd">Edit</button></div>
     </div>
-
     <div class="clock-row">
-      <div>
-        <div class="clock-name">3. End Shift</div>
-        <div class="clock-sub" id="finalAuditSub">Final clock-out</div>
-      </div>
-      <div class="clock-right">
-        <span class="clock-time mono" id="dispEnd">--:--:--</span>
-        <button class="btn-edit" onclick="openEditModal('end')">Edit</button>
-      </div>
+      <div><div class="clock-name">Clocked out</div><div class="clock-sub" id="tlOutSub">Shift saved to logbook</div></div>
+      <div class="clock-right"><span class="clock-time mono" id="tlOut">--:--</span><button class="btn-edit" data-edit="clockOut">Edit</button></div>
     </div>
   </div>
 
   <div class="section-card">
     <div class="section-title">
-      <span>Personal Shift Logbook</span>
-      <div style="display:flex; gap:6px;">
-        <button class="btn-small" onclick="exportCSV()">Export CSV</button>
-        <button class="btn-small" onclick="clearHistory()">Clear</button>
-      </div>
+      <span>Logbook</span>
+      <span class="mono" id="weekTotal" style="text-transform:none; color:var(--text); font-size:0.75rem;"></span>
     </div>
+    <div class="backup-line" id="backupLine">
+      <span id="backupText">Last backup: never</span>
+    </div>
+    <div class="btn-row" style="margin-bottom:10px;">
+      <button class="btn-small" id="backupBtn">Back up</button>
+      <button class="btn-small" id="restoreBtn">Restore</button>
+      <button class="btn-small" id="csvBtn">Export CSV</button>
+    </div>
+    <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" />
     <div id="historyList"></div>
   </div>
 
+  <p class="footnote">
+    11h duty limit: GB domestic drivers' hours rules (the law). Break timing and minimum break length are company rules, shown as warnings only.
+    Keep your own backups: browser data can be cleared. Not legal advice.
+  </p>
+
+  <!-- Edit time modal -->
   <div class="modal-backdrop" id="editModal">
     <div class="modal">
-      <h3 id="modalTitle">Edit Clock Time</h3>
-      <p id="modalDesc">Enter exact 24-hour time to the second (HH:MM:SS):</p>
-      <input type="text" class="mono" id="modalInput" placeholder="06:00:00" />
+      <h3 id="editTitle">Edit time</h3>
+      <p id="editDesc">24-hour clock.</p>
+      <input type="time" class="mono" id="editInput" />
+      <div class="quick" id="editQuick"></div>
+      <div class="error" id="editError"></div>
       <div class="modal-actions">
-        <button style="background:#334155; color:#fff;" onclick="closeEditModal()">Cancel</button>
-        <button style="background:var(--blue); color:#fff;" onclick="saveEditModal()">Save Time</button>
+        <button class="btn-cancel" id="editCancel">Cancel</button>
+        <button class="btn-save" id="editSave">Save</button>
       </div>
     </div>
   </div>
 
+  <!-- Settings modal -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal">
+      <h3>Shift settings</h3>
+      <p>Your usual rota. The break starts automatically at the planned time, so you only need to tap if something's different.</p>
+      <div class="grid-2" style="margin-bottom:0;">
+        <div class="field"><label for="setRotaStart">Rota start</label><input type="time" id="setRotaStart" /></div>
+        <div class="field"><label for="setRotaEnd">Rota finish</label><input type="time" id="setRotaEnd" /></div>
+        <div class="field"><label for="setBreakStart">Break starts</label><input type="time" id="setBreakStart" /></div>
+        <div class="field"><label for="setBreakMins">Break (mins)</label><input type="number" id="setBreakMins" min="0" max="180" step="5" /></div>
+      </div>
+      <label class="check"><input type="checkbox" id="setAutoBreak" /> Start the break automatically at the planned time</label>
+      <div class="grid-2" style="margin-bottom:0;">
+        <div class="field"><label for="setMaxStint">Max hrs before break</label><input type="number" id="setMaxStint" min="0" max="11" step="0.5" /><div class="hint">Company rule. 0 = off</div></div>
+        <div class="field"><label for="setMinBreak">Min break (mins)</label><input type="number" id="setMinBreak" min="0" max="120" step="5" /><div class="hint">Company rule. 0 = off</div></div>
+        <div class="field"><label for="setAmber">Amber at (mins left)</label><input type="number" id="setAmber" min="0" max="180" step="5" /></div>
+        <div class="field"><label for="setRed">Red at (mins left)</label><input type="number" id="setRed" min="0" max="180" step="5" /></div>
+      </div>
+      <div class="error" id="settingsError"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="settingsCancel">Cancel</button>
+        <button class="btn-save" id="settingsSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
+
   <script>
-    // Register Offline Service Worker
+    // ---------- Offline service worker ----------
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').then(() => {
@@ -501,467 +373,716 @@
         }).catch(() => {});
       });
     }
+    // Ask the browser not to evict our data under storage pressure (doesn't stop "clear on exit").
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
 
-    const DUTY_LIMIT_SEC = 11 * 3600;
-    const STD_REST_SEC = 11 * 3600;
-    const RED_REST_SEC = 9 * 3600;
-
-    let state = {
-      startTime: null,
-      lunchTime: null,
-      endTime: null,
-      breakDeductionSec: 3600,
-      maxContWorkSec: 6 * 3600,
-      savedToHistory: false
+    // ---------- Constants & state ----------
+    const DUTY_LIMIT_MS = 11 * 3600 * 1000;
+    const MIN = 60 * 1000;
+    const KEYS = { settings: 'dc_settings_v2', shift: 'dc_shift_v2', history: 'dc_history_v2', meta: 'dc_meta_v2' };
+    const DEFAULTS = {
+      rotaStart: '07:00', rotaEnd: '19:00', breakStart: '12:30', breakMins: 60, autoBreak: true,
+      maxStintMins: 360, minBreakMins: 45, amberMins: 30, redMins: 15
     };
 
-    let history = [];
+    let settings = { ...DEFAULTS };
+    let shift = null;      // { id, clockIn, breakStart, breakStartAuto, breakEnd, breakEndAuto, clockOut, breakMins, noAutoBreak }
+    let history = [];      // completed shifts, same shape as shift
+    let meta = { lastBackup: null };
+    let undoSnap = null, undoTimer = null;
+    let lastPhase = null, lastTheme = null;
     let editingField = null;
 
-    function loadData() {
-      const savedState = localStorage.getItem('gb_driver_state_v1');
-      if (savedState) {
-        try { state = { ...state, ...JSON.parse(savedState) }; } catch (e) {}
-      }
-      const savedHist = localStorage.getItem('gb_driver_history_v1');
-      if (savedHist) {
-        try { history = JSON.parse(savedHist); } catch (e) {}
-      }
-      updateRuleButton();
-      renderHistory();
+    const $ = id => document.getElementById(id);
+    const clone = v => (v == null ? v : JSON.parse(JSON.stringify(v)));
+
+    // ---------- Storage ----------
+    function readJSON(key, fallback) {
+      try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+    }
+    function save() {
+      try {
+        localStorage.setItem(KEYS.settings, JSON.stringify(settings));
+        localStorage.setItem(KEYS.shift, JSON.stringify(shift));
+        localStorage.setItem(KEYS.history, JSON.stringify(history));
+        localStorage.setItem(KEYS.meta, JSON.stringify(meta));
+      } catch (e) {}
+    }
+    function load() {
+      settings = { ...DEFAULTS, ...readJSON(KEYS.settings, {}) };
+      shift = readJSON(KEYS.shift, null);
+      meta = { ...meta, ...readJSON(KEYS.meta, {}) };
+      const h = readJSON(KEYS.history, null);
+      if (Array.isArray(h)) history = h;
+      else { history = migrateV1(); save(); }
     }
 
-    function saveData() {
-      localStorage.setItem('gb_driver_state_v1', JSON.stringify(state));
-      localStorage.setItem('gb_driver_history_v1', JSON.stringify(history));
-    }
-
-    function toggleBreakRule() {
-      state.maxContWorkSec = (state.maxContWorkSec === 6 * 3600) ? (5.5 * 3600) : (6 * 3600);
-      updateRuleButton();
-      saveData();
-      tick();
-    }
-
-    function updateRuleButton() {
-      const btn = document.getElementById('breakRuleBtn');
-      btn.textContent = state.maxContWorkSec === 6 * 3600
-        ? 'Break Limit: 6h 00m'
-        : 'Break Limit: 5h 30m';
-    }
-
-    function pad(n) { return String(Math.floor(Math.abs(n))).padStart(2, '0'); }
-
-    function formatHMS(sec, showPlus = false) {
-      const isNeg = sec < 0;
-      const abs = Math.floor(Math.abs(sec));
-      const h = Math.floor(abs / 3600);
-      const m = Math.floor((abs % 3600) / 60);
-      const s = abs % 60;
-      const prefix = isNeg ? '+' : (showPlus ? '+' : '');
-      return `${prefix}${pad(h)}:${pad(m)}:${pad(s)}`;
-    }
-
-    function formatWallClock(ms) {
-      if (!ms) return '--:--:--';
-      const d = new Date(ms);
-      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-    }
-
-    function getNetDutySeconds(nowMs) {
-      if (!state.startTime) return 0;
-      const refEnd = state.endTime || nowMs;
-      const totalElapsedSec = Math.max(0, (refEnd - state.startTime) / 1000);
-      if (!state.lunchTime) return totalElapsedSec;
-      const sinceLunchSec = Math.max(0, (refEnd - state.lunchTime) / 1000);
-      const breakTakenSoFar = Math.min(state.breakDeductionSec, sinceLunchSec);
-      return Math.max(0, totalElapsedSec - breakTakenSoFar);
-    }
-
-    function clockStart() {
-      state.startTime = Date.now();
-      state.lunchTime = null;
-      state.endTime = null;
-      state.breakDeductionSec = 3600;
-      state.savedToHistory = false;
-      saveData();
-      tick();
-    }
-
-    function clockLunch() {
-      if (!state.startTime) return;
-      state.lunchTime = Date.now();
-      saveData();
-      tick();
-    }
-
-    function clockEnd() {
-      if (!state.startTime) return;
-      state.endTime = Date.now();
-      recordOrUpdateHistory();
-      saveData();
-      tick();
-    }
-
-    function startNewShift() {
-      state.startTime = null;
-      state.lunchTime = null;
-      state.endTime = null;
-      state.breakDeductionSec = 3600;
-      state.savedToHistory = false;
-      saveData();
-      tick();
-    }
-
-    function recordOrUpdateHistory() {
-      if (!state.startTime || !state.endTime) return;
-      const netDutySec = getNetDutySeconds(state.endTime);
-      const preLunchSec = state.lunchTime
-        ? Math.max(0, (state.lunchTime - state.startTime) / 1000)
-        : netDutySec;
-
-      const dutyDiff = DUTY_LIMIT_SEC - netDutySec;
-      const breakDiff = state.maxContWorkSec - preLunchSec;
-      const isLegal = (dutyDiff >= 0) && (breakDiff >= 0);
-
-      const entry = {
-        id: state.startTime,
-        dateStr: new Date(state.startTime).toLocaleDateString('en-GB', {
-          weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
-        }),
-        startStr: formatWallClock(state.startTime),
-        lunchStr: state.lunchTime ? formatWallClock(state.lunchTime) : 'None',
-        breakDedStr: formatHMS(state.breakDeductionSec),
-        endStr: formatWallClock(state.endTime),
-        netDutyStr: formatHMS(netDutySec),
-        preLunchStr: formatHMS(preLunchSec),
-        isLegal,
-        verdictStr: dutyDiff >= 0
-          ? `Duty Legal (${formatHMS(dutyDiff)} margin)`
-          : `DUTY BREACH (+${formatHMS(Math.abs(dutyDiff))} over 11h)`,
-        breakVerdictStr: breakDiff >= 0
-          ? `Pre-Lunch Legal (${formatHMS(preLunchSec)})`
-          : `BREAK BREACH (+${formatHMS(Math.abs(breakDiff))} over ${formatHMS(state.maxContWorkSec)})`
+    // Bring across the logbook and any in-progress shift from the first version of the app.
+    function migrateV1() {
+      const out = [];
+      const old = readJSON('gb_driver_history_v1', []);
+      const hmsToSec = s => {
+        const m = /^(\d+):(\d\d):(\d\d)$/.exec(s || '');
+        return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : 3600;
       };
-
-      const existingIdx = history.findIndex(h => h.id === state.startTime);
-      if (existingIdx >= 0) history[existingIdx] = entry;
-      else history.unshift(entry);
-      state.savedToHistory = true;
-      saveData();
-      renderHistory();
+      (Array.isArray(old) ? old : []).forEach(h => {
+        if (!h || typeof h.id !== 'number') return;
+        const clockIn = h.id;
+        const toT = str => {
+          const m = /^(\d\d):(\d\d)(?::(\d\d))?$/.exec(str || '');
+          if (!m) return null;
+          const d = new Date(clockIn); d.setHours(+m[1], +m[2], +(m[3] || 0), 0);
+          if (d.getTime() < clockIn) d.setDate(d.getDate() + 1);
+          return d.getTime();
+        };
+        const clockOut = toT(h.endStr);
+        if (clockOut == null) return;
+        const bs = toT(h.lunchStr);
+        out.push({
+          id: 's' + clockIn, clockIn, clockOut, breakMins: 60,
+          breakStart: bs, breakEnd: bs != null ? bs + hmsToSec(h.breakDedStr) * 1000 : null
+        });
+      });
+      const st = readJSON('gb_driver_state_v1', null);
+      if (!shift && st && st.startTime && !st.endTime) {
+        const ded = typeof st.breakDeductionSec === 'number' ? st.breakDeductionSec : 3600;
+        shift = {
+          id: 's' + st.startTime, clockIn: st.startTime, clockOut: null, breakMins: 60,
+          breakStart: st.lunchTime || null,
+          breakEnd: st.lunchTime && ded < 3600 ? st.lunchTime + ded * 1000 : null
+        };
+      }
+      return out.sort((a, b) => b.clockIn - a.clockIn);
     }
 
-    function applyTheme(card, remSec) {
-      card.className = 'hero-card';
-      if (remSec < 0) card.classList.add('theme-breach');
-      else if (remSec <= 600) card.classList.add('theme-red');
-      else if (remSec <= 1800) card.classList.add('theme-amber');
-      else card.classList.add('theme-green');
+    // ---------- Time helpers ----------
+    const pad = n => String(n).padStart(2, '0');
+    function hm(ms) {
+      if (ms == null) return '--:--';
+      const d = new Date(ms);
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    // Duration as H:MM:SS (or "Xh YYm" when short=true). Always rounds down.
+    function dur(ms, short = false) {
+      const s = Math.floor(Math.abs(ms) / 1000);
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+      return short ? `${h}h ${pad(m)}m` : `${h}:${pad(m)}:${pad(x)}`;
+    }
+    function mins(ms) { return Math.floor(Math.abs(ms) / MIN); }
+    function parseHM(str) {
+      const m = /^(\d{1,2}):(\d\d)/.exec(str || '');
+      if (!m) return null;
+      const h = +m[1], mi = +m[2];
+      return h > 23 || mi > 59 ? null : { h, m: mi };
+    }
+    function atOnDay(hhmm, refMs, dayOffset = 0) {
+      const p = parseHM(hhmm);
+      const d = new Date(refMs);
+      d.setDate(d.getDate() + dayOffset);
+      d.setHours(p.h, p.m, 0, 0);
+      return d.getTime();
+    }
+    const floorMin = ms => Math.floor(ms / MIN) * MIN;
+    function firstAtOrAfter(hhmm, refMs) {
+      const t = atOnDay(hhmm, refMs);
+      return t < floorMin(refMs) ? atOnDay(hhmm, refMs, 1) : t;
+    }
+    function lastAtOrBefore(hhmm, refMs) {
+      const t = atOnDay(hhmm, refMs);
+      return t > refMs ? atOnDay(hhmm, refMs, -1) : t;
+    }
+    function nearest(hhmm, refMs) {
+      return [-1, 0, 1].map(o => atOnDay(hhmm, refMs, o))
+        .reduce((best, t) => (Math.abs(t - refMs) < Math.abs(best - refMs) ? t : best));
+    }
+
+    // ---------- Shift maths ----------
+    const breakLenMs = s => (s.breakMins != null ? s.breakMins : settings.breakMins) * MIN;
+
+    function plannedBreakStart(s) {
+      let t = firstAtOrAfter(settings.breakStart, s.clockIn);
+      if (t - s.clockIn > DUTY_LIMIT_MS) t = s.clockIn + (settings.maxStintMins || 360) * MIN;
+      return t;
+    }
+    function rotaEndFor(s) { return firstAtOrAfter(settings.rotaEnd, s.clockIn); }
+
+    // Turn the plan into recorded times once they pass (auto break start / full-length break end).
+    // Works on finished shifts too, so edits made after clocking out still fill in the break.
+    function fillPlan(s, now) {
+      if (!s) return false;
+      const until = s.clockOut != null ? s.clockOut : now;
+      let changed = false;
+      if (!s.breakStart && settings.autoBreak && !s.noAutoBreak) {
+        const p = plannedBreakStart(s);
+        if (until >= p && (!s.clockOut || s.clockOut > p)) { s.breakStart = p; s.breakStartAuto = true; changed = true; }
+      }
+      if (s.breakStart && !s.breakEnd) {
+        const e = s.breakStart + breakLenMs(s);
+        if (until >= e) { s.breakEnd = e; s.breakEndAuto = true; changed = true; }
+        else if (s.clockOut) { s.breakEnd = s.clockOut; s.breakEndAuto = false; changed = true; }
+      }
+      return changed;
+    }
+
+    function phaseOf(s) {
+      if (!s) return 'idle';
+      if (s.clockOut) return 'done';
+      if (!s.breakStart) return 'pre';
+      if (!s.breakEnd) return 'break';
+      return 'post';
+    }
+
+    function calc(s, now) {
+      const until = s.clockOut != null ? s.clockOut : now;
+      const bs = s.breakStart, be = s.breakEnd;
+      let breakTaken = 0;
+      if (bs != null && until > bs) breakTaken = Math.max(0, Math.min(be != null ? be : Infinity, until) - bs);
+      const duty = Math.max(0, until - s.clockIn - breakTaken);
+      // Before/during the break assume the full planned break; afterwards use what was actually taken.
+      const breakForLimit = be != null && bs != null ? be - bs : breakLenMs(s);
+      const hardStop = s.clockIn + DUTY_LIMIT_MS + breakForLimit;
+      const preStint = Math.max(0, Math.min(bs != null ? bs : until, until) - s.clockIn);
+      const postStint = be != null ? Math.max(0, until - be) : 0;
+      return { until, duty, breakTaken, hardStop, preStint, postStint };
+    }
+
+    // Company-rule notes for a finished (or in-progress) shift.
+    function companyNotes(s, c) {
+      const notes = [];
+      const max = settings.maxStintMins * MIN;
+      if (settings.maxStintMins > 0) {
+        if (c.preStint > max) notes.push(`${dur(c.preStint - max, true)} over ${settings.maxStintMins / 60}h before break`);
+        if (c.postStint > max) notes.push(`${dur(c.postStint - max, true)} over ${settings.maxStintMins / 60}h after break`);
+      }
+      if (settings.minBreakMins > 0 && s.clockOut && c.duty > 6 * 3600 * 1000 && c.breakTaken < settings.minBreakMins * MIN) {
+        notes.push(`break only ${mins(c.breakTaken)} min (company min ${settings.minBreakMins})`);
+      }
+      return notes;
+    }
+
+    function weekStart(now) {
+      const d = new Date(now); d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // Monday
+      return d.getTime();
+    }
+    function weekDuty(now) {
+      const ws = weekStart(now);
+      let total = 0;
+      history.forEach(h => { if (h.clockIn >= ws) total += calc(h, h.clockOut).duty; });
+      if (shift && !shift.clockOut && shift.clockIn >= ws) total += calc(shift, now).duty;
+      return total;
+    }
+
+    // ---------- Actions ----------
+    function act(fn, message) {
+      undoSnap = { shift: clone(shift), history: clone(history) };
+      fn(Date.now());
+      save();
+      renderHistory();
+      showToast(message);
+      tick();
+    }
+    function upsertHistory(s) {
+      const i = history.findIndex(h => h.id === s.id);
+      const entry = clone(s);
+      if (i >= 0) history[i] = entry; else history.push(entry);
+      history.sort((a, b) => b.clockIn - a.clockIn);
+    }
+    function newShift(clockIn) {
+      return { id: 's' + Date.now(), clockIn, breakStart: null, breakEnd: null, clockOut: null, breakMins: settings.breakMins };
+    }
+    const doClockIn = () => act(now => { shift = newShift(now); }, `Clocked in at ${hm(Date.now())}`);
+    const doStartBreak = () => act(now => { shift.breakStart = now; shift.breakStartAuto = false; }, `Break started at ${hm(Date.now())}`);
+    const doEndBreak = () => act(now => { shift.breakEnd = now; shift.breakEndAuto = false; }, `Back on duty at ${hm(Date.now())}`);
+    const doClockOut = () => act(now => {
+      if (shift.breakStart && !shift.breakEnd) { shift.breakEnd = now; shift.breakEndAuto = false; }
+      shift.clockOut = now;
+      upsertHistory(shift);
+    }, `Clocked out at ${hm(Date.now())}`);
+
+    function showToast(msg) {
+      $('toastMsg').textContent = msg;
+      $('toast').classList.add('show');
+      clearTimeout(undoTimer);
+      undoTimer = setTimeout(() => { $('toast').classList.remove('show'); undoSnap = null; }, 15000);
+    }
+    $('toastUndo').addEventListener('click', () => {
+      if (!undoSnap) return;
+      shift = undoSnap.shift; history = undoSnap.history; undoSnap = null;
+      save(); renderHistory();
+      $('toast').classList.remove('show');
+      lastPhase = '__force__';
+      tick();
+    });
+
+    // ---------- Buttons ----------
+    function makeBtn(cls, label, onTap) {
+      const b = document.createElement('button');
+      b.className = 'btn-main ' + cls;
+      b.innerHTML = `<span class="label"></span>`;
+      b.querySelector('.label').textContent = label;
+      b.addEventListener('click', () => { if (!b.disabled) onTap(); });
+      return b;
+    }
+    // Press-and-hold button so a stray tap can't end the shift.
+    function makeHoldBtn(cls, label, holdMs, onDone) {
+      const b = document.createElement('button');
+      b.className = 'btn-main hold ' + cls;
+      b.innerHTML = `<span class="hold-fill"></span><span class="label"></span>`;
+      b.querySelector('.label').textContent = label;
+      const fill = b.querySelector('.hold-fill');
+      let t = null;
+      const reset = () => { fill.style.transition = 'width 150ms'; fill.style.width = '0'; };
+      b.addEventListener('pointerdown', e => {
+        if (b.disabled) return;
+        e.preventDefault();
+        fill.style.transition = `width ${holdMs}ms linear`;
+        fill.style.width = '100%';
+        t = setTimeout(() => { t = null; reset(); onDone(); }, holdMs);
+      });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, () => {
+        if (t) { clearTimeout(t); t = null; }
+        reset();
+      }));
+      b.addEventListener('contextmenu', e => e.preventDefault());
+      b.addEventListener('keydown', e => {
+        if ((e.key === 'Enter' || e.key === ' ') && !b.disabled && confirm(label.replace(/^Hold to /i, '') + '?')) { e.preventDefault(); onDone(); }
+      });
+      return b;
+    }
+
+    // Buttons are only rebuilt when the phase changes, so taps are never lost mid-press.
+    function renderActions(phase, lockout) {
+      const area = $('actionArea');
+      area.innerHTML = '';
+      const add = b => { area.appendChild(b); return b; };
+      if (phase === 'idle' || phase === 'done') {
+        add(makeBtn('btn-start', phase === 'done' ? 'CLOCK IN (NEXT SHIFT)' : 'CLOCK IN', doClockIn));
+        add(makeBtn('btn-plain small', 'Already clocked in? Set the time', () => openEdit('clockIn')));
+      } else if (phase === 'pre') {
+        add(makeBtn('btn-break', 'START BREAK NOW', doStartBreak));
+        add(makeHoldBtn('btn-end small', 'Hold to clock out early', 1000, doClockOut));
+      } else if (phase === 'break') {
+        add(makeBtn('btn-plain', 'BACK ON DUTY EARLY', doEndBreak));
+        add(makeHoldBtn('btn-end small', 'Hold to clock out', 1000, doClockOut));
+      } else if (phase === 'post') {
+        add(makeHoldBtn('btn-end', 'HOLD TO CLOCK OUT', 1000, doClockOut));
+      }
+      if (lockout) {
+        const btns = area.querySelectorAll('button');
+        btns.forEach(b => (b.disabled = true));
+        setTimeout(() => btns.forEach(b => (b.disabled = false)), 1200);
+      }
+    }
+
+    // ---------- Render loop ----------
+    function setTheme(cls) {
+      const card = $('heroCard');
+      card.className = 'hero-card' + (cls ? ' ' + cls : '');
+      if (lastTheme !== null && cls !== lastTheme && ['theme-amber', 'theme-red', 'theme-breach'].includes(cls)) {
+        try { navigator.vibrate && navigator.vibrate([250, 120, 250]); } catch (e) {}
+      }
+      lastTheme = cls;
+    }
+    function finishTheme(remMs) {
+      if (remMs < 0) return 'theme-breach';
+      if (remMs <= settings.redMins * MIN) return 'theme-red';
+      if (remMs <= settings.amberMins * MIN) return 'theme-amber';
+      return 'theme-green';
+    }
+    function setSteps(phase, s) {
+      const order = ['pre', 'break', 'post'];
+      const idx = order.indexOf(phase);
+      ['step1', 'step2', 'step3'].forEach((id, i) => {
+        const el = $(id);
+        el.className = 'step' + (phase === 'done' || (idx >= 0 && i < idx) ? ' past' : '') + (i === idx ? ' current' : '');
+      });
+      if (s) {
+        const c = calc(s, Date.now());
+        $('step1Val').textContent = hm(s.breakStart || plannedBreakStart(s));
+        $('step2Val').textContent = (s.breakEnd && s.breakStart ? mins(s.breakEnd - s.breakStart) : mins(breakLenMs(s))) + 'm';
+        $('step3Val').textContent = hm(s.clockOut || c.hardStop);
+      } else {
+        $('step1Val').textContent = settings.breakStart;
+        $('step2Val').textContent = settings.breakMins + 'm';
+        $('step3Val').textContent = hm(atOnDay(settings.rotaStart, Date.now()) + DUTY_LIMIT_MS + settings.breakMins * MIN);
+      }
+    }
+    function notesHTML(list) {
+      return list.map(([cls, text]) => `<div class="${cls}"></div>`).join('');
+    }
+    function setNotes(list) {
+      const el = $('heroNotes');
+      el.innerHTML = notesHTML(list);
+      [...el.children].forEach((child, i) => (child.textContent = list[i][1]));
     }
 
     function tick() {
       const now = Date.now();
-      document.getElementById('wallClock').textContent = formatWallClock(now);
-      document.getElementById('dispStart').textContent = formatWallClock(state.startTime);
-      document.getElementById('dispLunch').textContent = formatWallClock(state.lunchTime);
-      document.getElementById('dispBreakDed').textContent = formatHMS(state.breakDeductionSec);
-      document.getElementById('dispEnd').textContent = formatWallClock(state.endTime);
+      if (shift && !shift.clockOut && fillPlan(shift, now)) save();
+      const phase = phaseOf(shift);
+      if (phase !== lastPhase) {
+        renderActions(phase, lastPhase !== null);
+        lastPhase = phase;
+      }
 
-      const heroCard = document.getElementById('heroCard');
-      const heroLabel = document.getElementById('heroLabel');
-      const heroTimer = document.getElementById('heroTimer');
-      const heroDeadline = document.getElementById('heroDeadline');
-      const statusDot = document.getElementById('statusDot');
-      const statusText = document.getElementById('statusText');
-      const lunchBanner = document.getElementById('lunchBanner');
-      const actionArea = document.getElementById('actionArea');
+      $('wallClock').textContent = new Date(now).toTimeString().slice(0, 8);
+      $('appSub').textContent = `${settings.rotaStart}–${settings.rotaEnd} • ${settings.breakMins}m break at ${settings.breakStart} • 11h max duty`;
+      setSteps(phase, shift);
 
-      const sub1Label = document.getElementById('sub1Label');
-      const sub1Value = document.getElementById('sub1Value');
-      const sub1Meta = document.getElementById('sub1Meta');
-      const sub2Label = document.getElementById('sub2Label');
-      const sub2Value = document.getElementById('sub2Value');
-      const sub2Meta = document.getElementById('sub2Meta');
+      // Timeline
+      $('tlIn').textContent = hm(shift && shift.clockIn);
+      $('tlBs').textContent = hm(shift && shift.breakStart);
+      $('tlBe').textContent = hm(shift && shift.breakEnd);
+      $('tlOut').textContent = hm(shift && shift.clockOut);
+      $('tlBsSub').textContent = !shift ? 'Starts automatically at planned time'
+        : shift.breakStart ? (shift.breakStartAuto ? 'Auto (planned time) — edit if late' : 'Recorded')
+        : shift.noAutoBreak ? 'No break taken' : `Planned ${hm(plannedBreakStart(shift))}`;
+      if (shift && shift.breakStart && shift.breakEnd) {
+        const taken = mins(shift.breakEnd - shift.breakStart);
+        const planned = mins(breakLenMs(shift));
+        $('tlBeSub').textContent = taken >= planned ? `Full break (${taken} min)` : `Break cut short: ${taken} of ${planned} min`;
+      } else {
+        $('tlBeSub').textContent = 'Edit if break was cut short';
+      }
 
-      if (!state.startTime) {
-        heroCard.className = 'hero-card';
-        statusDot.className = 'dot';
-        statusText.textContent = 'Off Duty / Ready';
-        lunchBanner.style.display = 'none';
-        heroLabel.textContent = 'GB Domestic Daily Duty Limit';
-        heroTimer.textContent = '11:00:00';
-        heroDeadline.textContent = '12h Shift Spreadover (11h Duty + 1h Lunch)';
-        sub1Label.textContent = 'Mandatory Break Limit';
-        sub1Value.textContent = formatHMS(state.maxContWorkSec);
-        sub1Meta.textContent = 'Continuous pre-lunch max';
-        sub2Label.textContent = 'Net Duty Worked';
-        sub2Value.textContent = '00:00:00';
-        sub2Meta.textContent = 'Ready to clock in';
-        document.getElementById('preLunchAudit').textContent = 'Unbroken break start';
-        document.getElementById('finalAuditSub').textContent = 'Final clock-out';
-        actionArea.innerHTML = `<button class="btn-main btn-start" onclick="clockStart()">CLOCK IN (START SHIFT)</button>`;
+      const dot = $('statusDot'), status = $('statusText');
+      const notes = [];
+
+      if (phase === 'idle') {
+        dot.className = 'dot'; status.textContent = 'Off duty';
+        setTheme('');
+        $('heroLabel').textContent = 'Off duty';
+        $('heroTimer').textContent = 'Ready';
+        $('heroDeadline').textContent = `Rota ${settings.rotaStart}–${settings.rotaEnd}`;
+        $('cardALabel').textContent = `In at ${settings.rotaStart} → out by`;
+        $('cardAValue').textContent = hm(atOnDay(settings.rotaStart, now) + DUTY_LIMIT_MS + settings.breakMins * MIN);
+        $('cardAMeta').textContent = `With a full ${settings.breakMins} min break`;
+        $('cardBLabel').textContent = 'This week';
+        $('cardBValue').textContent = dur(weekDuty(now), true);
+        $('cardBMeta').textContent = 'Duty since Monday';
+        setNotes(notes);
         return;
       }
 
-      const netDutySec = getNetDutySeconds(now);
-      const projectedMaxClockOutMs = state.startTime + (DUTY_LIMIT_SEC + state.breakDeductionSec) * 1000;
-      const raw11hCeilingMs = state.startTime + DUTY_LIMIT_SEC * 1000;
+      const c = calc(shift, now);
+      const rotaEnd = rotaEndFor(shift);
 
-      if (state.startTime && !state.lunchTime && !state.endTime) {
-        statusDot.className = 'dot active';
-        statusText.textContent = 'On Duty (Pre-Lunch)';
-        lunchBanner.style.display = 'none';
-
-        const mandatoryBreakDeadlineMs = state.startTime + state.maxContWorkSec * 1000;
-        const breakRemSec = (mandatoryBreakDeadlineMs - now) / 1000;
-
-        applyTheme(heroCard, breakRemSec);
-        heroLabel.textContent = breakRemSec >= 0
-          ? 'Countdown to Mandatory Lunch Break'
-          : 'MANDATORY BREAK LIMIT BREACHED BY';
-        heroTimer.textContent = formatHMS(breakRemSec);
-        heroDeadline.textContent = `Must start lunch by ${formatWallClock(mandatoryBreakDeadlineMs)}`;
-
-        const dutyRemWithLunchSec = (projectedMaxClockOutMs - now) / 1000;
-        sub1Label.textContent = '11h Duty Ceiling (w/ 1h Lunch)';
-        sub1Value.textContent = formatWallClock(projectedMaxClockOutMs);
-        sub1Meta.textContent = `${formatHMS(dutyRemWithLunchSec)} left (Raw 11h: ${formatWallClock(raw11hCeilingMs)})`;
-
-        sub2Label.textContent = 'Continuous Duty Worked';
-        sub2Value.textContent = formatHMS(netDutySec);
-        sub2Meta.textContent = `${formatHMS(DUTY_LIMIT_SEC - netDutySec)} of 11h duty left`;
-
-        actionArea.innerHTML = `
-          <button class="btn-main btn-lunch" onclick="clockLunch()">CLOCK LUNCH (1H UNBROKEN)</button>
-          <button class="btn-main btn-end" style="margin-top:8px; padding:12px; font-size:0.92rem;" onclick="clockEnd()">END SHIFT DIRECTLY</button>
-        `;
+      if (phase === 'done') {
+        dot.className = 'dot done'; status.textContent = 'Shift complete';
+        const over = c.duty - DUTY_LIMIT_MS;
+        setTheme(over > 0 ? 'theme-breach' : 'theme-green');
+        $('heroLabel').textContent = over > 0 ? 'Over the 11h duty limit' : 'Shift complete • legal';
+        $('heroTimer').textContent = dur(c.duty);
+        $('heroDeadline').textContent = over > 0 ? `${dur(over)} over 11h` : `${dur(-over)} under 11h`;
+        companyNotes(shift, c).forEach(n => notes.push(['note-warn', 'Company rule: ' + n]));
+        $('cardALabel').textContent = 'Break taken';
+        $('cardAValue').textContent = `${mins(c.breakTaken)} min`;
+        $('cardAMeta').textContent = `${hm(shift.clockIn)} → ${hm(shift.clockOut)}`;
+        $('cardBLabel').textContent = 'This week';
+        $('cardBValue').textContent = dur(weekDuty(now), true);
+        $('cardBMeta').textContent = 'Duty since Monday';
+        setNotes(notes);
         return;
       }
 
-      if (state.lunchTime) {
-        const preLunchSec = Math.max(0, (state.lunchTime - state.startTime) / 1000);
-        const preDiff = state.maxContWorkSec - preLunchSec;
-        const auditEl = document.getElementById('preLunchAudit');
-        if (preDiff >= 0) {
-          auditEl.innerHTML = `<span style="color:#34d399;">Pre-lunch legal: ${formatHMS(preLunchSec)} worked</span>`;
-        } else {
-          auditEl.innerHTML = `<span style="color:#f87171;">Pre-lunch breach: +${formatHMS(Math.abs(preDiff))} over limit</span>`;
-        }
+      // Shared cards while on shift
+      $('cardALabel').textContent = 'Must clock out by';
+      $('cardAValue').textContent = hm(c.hardStop);
+      $('cardAMeta').textContent = c.hardStop < floorMin(rotaEnd)
+        ? `${mins(rotaEnd - c.hardStop) || 1} min before rota finish (${hm(rotaEnd)})`
+        : `Rota finish ${hm(rotaEnd)}`;
+      $('cardBLabel').textContent = 'Duty so far';
+      $('cardBValue').textContent = dur(c.duty);
+      $('cardBMeta').textContent = c.duty <= DUTY_LIMIT_MS ? `${dur(DUTY_LIMIT_MS - c.duty, true)} of 11h left` : `${dur(c.duty - DUTY_LIMIT_MS, true)} OVER 11h`;
+
+      if (c.hardStop < floorMin(rotaEnd)) {
+        const why = [];
+        if (shift.clockIn < lastAtOrBefore(settings.rotaStart, shift.clockIn + 4 * 3600 * 1000)) why.push('early start');
+        if (shift.breakEnd && shift.breakEnd - shift.breakStart < breakLenMs(shift)) why.push('short break');
+        notes.push(['note-warn', `Legal finish is ${hm(c.hardStop)}, before your rota finish of ${hm(rotaEnd)}` +
+          (why.length ? ` (${why.join(' + ')})` : '')]);
       }
 
-      if (state.startTime && state.lunchTime && !state.endTime) {
-        const lunchEndMs = state.lunchTime + state.breakDeductionSec * 1000;
-        const lunchRemSec = (lunchEndMs - now) / 1000;
-
-        if (lunchRemSec > 0) {
-          statusDot.className = 'dot lunch';
-          statusText.textContent = 'On Unbroken Lunch Break';
-          lunchBanner.style.display = 'block';
-          document.getElementById('lunchCountdown').textContent = formatHMS(lunchRemSec);
-          document.getElementById('lunchEndsAt').textContent = formatWallClock(lunchEndMs);
-        } else {
-          statusDot.className = 'dot active';
-          statusText.textContent = 'On Duty (Post-Lunch)';
-          lunchBanner.style.display = 'none';
+      if (phase === 'pre') {
+        dot.className = 'dot active'; status.textContent = 'On duty • before break';
+        const planned = plannedBreakStart(shift);
+        const rem = planned - now;
+        const stintOver = settings.maxStintMins > 0 && c.preStint > settings.maxStintMins * MIN;
+        setTheme(stintOver ? 'theme-amber' : 'theme-green');
+        $('heroLabel').textContent = rem >= 0 ? 'Time until break' : 'Break overdue by';
+        $('heroTimer').textContent = dur(rem);
+        $('heroDeadline').textContent = `Break at ${hm(planned)} • ${mins(breakLenMs(shift))} min`;
+        if (settings.maxStintMins > 0) {
+          const ruleAt = shift.clockIn + settings.maxStintMins * MIN;
+          if (stintOver) notes.push(['note-warn', `Company rule: over ${settings.maxStintMins / 60}h without a break`]);
+          else if (planned > ruleAt) notes.push(['note-warn', `Planned break is after the ${settings.maxStintMins / 60}h company limit (${hm(ruleAt)})`]);
         }
-
-        const legalClockOutMs = state.startTime + (DUTY_LIMIT_SEC + state.breakDeductionSec) * 1000;
-        const clockOutRemSec = (legalClockOutMs - now) / 1000;
-
-        applyTheme(heroCard, clockOutRemSec);
-        heroLabel.textContent = clockOutRemSec >= 0
-          ? 'Time Left Before Mandatory Clock-Out'
-          : '11-HOUR GB DOMESTIC DUTY BREACHED BY';
-        heroTimer.textContent = formatHMS(clockOutRemSec);
-        heroDeadline.textContent = clockOutRemSec >= 0
-          ? `Must clock out by ${formatWallClock(legalClockOutMs)} to stay legal`
-          : `Deadline was ${formatWallClock(legalClockOutMs)} — CLOCK OUT NOW`;
-
-        sub1Label.textContent = 'Legal Clock-Out Time';
-        sub1Value.textContent = formatWallClock(legalClockOutMs);
-        sub1Meta.textContent = `Includes ${formatHMS(state.breakDeductionSec)} break`;
-
-        sub2Label.textContent = 'Net Duty Worked';
-        sub2Value.textContent = formatHMS(netDutySec);
-        const dutyRem = DUTY_LIMIT_SEC - netDutySec;
-        sub2Meta.textContent = dutyRem >= 0
-          ? `${formatHMS(dutyRem)} of 11h remaining`
-          : `+${formatHMS(Math.abs(dutyRem))} OVER 11H LIMIT`;
-
-        actionArea.innerHTML = `<button class="btn-main btn-end" onclick="clockEnd()">CLOCK OUT (END SHIFT)</button>`;
-        return;
-      }
-
-      if (state.startTime && state.endTime) {
-        lunchBanner.style.display = 'none';
-        statusDot.className = 'dot rest';
-        statusText.textContent = 'Shift Complete • Daily Rest';
-
-        const dutyMarginSec = DUTY_LIMIT_SEC - netDutySec;
-        const stdRestEndMs = state.endTime + STD_REST_SEC * 1000;
-        const redRestEndMs = state.endTime + RED_REST_SEC * 1000;
-        const stdRestRemSec = Math.max(0, (stdRestEndMs - now) / 1000);
-
-        if (dutyMarginSec >= 0) {
-          heroCard.className = 'hero-card theme-green';
-          heroLabel.textContent = `SHIFT LEGAL • ${formatHMS(dutyMarginSec)} UNDER 11H LIMIT`;
-        } else {
-          heroCard.className = 'hero-card theme-breach';
-          heroLabel.textContent = `BREACH RECORDED • +${formatHMS(Math.abs(dutyMarginSec))} OVER 11H LIMIT`;
+      } else if (phase === 'break') {
+        dot.className = 'dot break'; status.textContent = 'On break';
+        setTheme('theme-blue');
+        const end = shift.breakStart + breakLenMs(shift);
+        $('heroLabel').textContent = 'Break remaining';
+        $('heroTimer').textContent = dur(end - now);
+        $('heroDeadline').textContent = `Back on duty at ${hm(end)}`;
+        notes.push(['', shift.breakStartAuto
+          ? `Break started ${hm(shift.breakStart)} (planned time). Started later? Edit it below.`
+          : `Break started ${hm(shift.breakStart)}`]);
+        notes.push(['', 'Called back early? Tap "Back on duty early" — your finish time moves earlier.']);
+      } else if (phase === 'post') {
+        dot.className = 'dot active'; status.textContent = 'On duty • after break';
+        const rem = c.hardStop - now;
+        setTheme(finishTheme(rem));
+        $('heroLabel').textContent = rem >= 0 ? 'Time until finish' : 'Over 11h duty by';
+        $('heroTimer').textContent = dur(rem);
+        $('heroDeadline').textContent = rem >= 0 ? `Clock out by ${hm(c.hardStop)}` : `Limit was ${hm(c.hardStop)} — clock out now`;
+        if (settings.maxStintMins > 0 && c.postStint > settings.maxStintMins * MIN) {
+          notes.push(['note-warn', `Company rule: over ${settings.maxStintMins / 60}h since your break`]);
         }
-
-        heroTimer.textContent = formatHMS(stdRestRemSec);
-        heroDeadline.textContent = stdRestRemSec > 0
-          ? `11h Daily Rest clear at ${formatWallClock(stdRestEndMs)} (9h Reduced: ${formatWallClock(redRestEndMs)})`
-          : `11h Daily Rest Complete — Legal to start next shift`;
-
-        sub1Label.textContent = 'Final Net Duty';
-        sub1Value.textContent = formatHMS(netDutySec);
-        sub1Meta.textContent = dutyMarginSec >= 0
-          ? `Legal (${formatHMS(dutyMarginSec)} spare)`
-          : `Breached by ${formatHMS(Math.abs(dutyMarginSec))}`;
-
-        const totalSpreadSec = Math.max(0, (state.endTime - state.startTime) / 1000);
-        sub2Label.textContent = 'Total Shift Spreadover';
-        sub2Value.textContent = formatHMS(totalSpreadSec);
-        sub2Meta.textContent = `Earliest 11h start: ${formatWallClock(stdRestEndMs)}`;
-
-        document.getElementById('finalAuditSub').textContent = dutyMarginSec >= 0
-          ? `Legal by ${formatHMS(dutyMarginSec)}`
-          : `Breached by ${formatHMS(Math.abs(dutyMarginSec))}`;
-
-        actionArea.innerHTML = `
-          <button class="btn-main btn-start" onclick="clockStart()">START NEXT SHIFT NOW</button>
-          <button class="btn-main btn-reset" onclick="startNewShift()">Reset Dashboard</button>
-        `;
       }
+      setNotes(notes);
     }
 
-    function openEditModal(field) {
+    // ---------- Edit times ----------
+    const FIELD_NAMES = { clockIn: 'Clocked in', breakStart: 'Break started', breakEnd: 'Back on duty', clockOut: 'Clocked out' };
+
+    function openEdit(field) {
+      if (field !== 'clockIn' && !shift) { alert('Clock in first (or set your clock-in time).'); return; }
+      if (field === 'breakEnd' && !shift.breakStart) { alert('Set the break start first.'); return; }
       editingField = field;
-      const modal = document.getElementById('editModal');
-      const title = document.getElementById('modalTitle');
-      const desc = document.getElementById('modalDesc');
-      const input = document.getElementById('modalInput');
-
-      if (field === 'breakDed') {
-        title.textContent = 'Edit Unbroken Break Deduction';
-        desc.textContent = 'Set valid unbroken rest duration (HH:MM:SS). Set lower if a manager interrupted your hour:';
-        input.value = formatHMS(state.breakDeductionSec);
-      } else {
-        const names = { start: 'Start Shift', lunch: 'Lunch Clock', end: 'End Shift' };
-        title.textContent = `Edit ${names[field]} Time`;
-        desc.textContent = 'Enter exact 24-hour clock time to the second (HH:MM:SS):';
-        const currentMs = field === 'start' ? state.startTime : (field === 'lunch' ? state.lunchTime : state.endTime);
-        input.value = currentMs ? formatWallClock(currentMs) : formatWallClock(Date.now());
-      }
-      modal.style.display = 'flex';
-      input.focus();
+      $('editTitle').textContent = FIELD_NAMES[field];
+      $('editError').textContent = '';
+      const current = shift && shift[field];
+      $('editInput').value = current ? hm(current) : (field === 'clockIn' && !shift ? settings.rotaStart : hm(Date.now()));
+      const descs = {
+        clockIn: 'When you actually started work. Starting early moves your legal finish earlier.',
+        breakStart: 'When your break actually started.',
+        breakEnd: 'When you went back to work. A short break moves your legal finish earlier.',
+        clockOut: shift && !shift.clockOut ? 'Setting this ends the shift and saves it to the logbook.' : 'When you clocked out.'
+      };
+      $('editDesc').textContent = descs[field];
+      const quick = $('editQuick');
+      quick.innerHTML = '';
+      const q = (label, fn) => { const b = document.createElement('button'); b.className = 'btn-small'; b.textContent = label; b.addEventListener('click', fn); quick.appendChild(b); };
+      q('Now', () => { $('editInput').value = hm(Date.now()); });
+      if (field === 'breakStart' && shift && (shift.breakStart || !shift.noAutoBreak)) q('No break taken', () => applyEdit({ noBreak: true }));
+      if (field === 'breakStart' && shift && shift.noAutoBreak) q('Use planned time', () => applyEdit({ planned: true }));
+      if (field === 'breakEnd') q(`Full ${mins(breakLenMs(shift))} min`, () => applyEdit({ fullBreak: true }));
+      if (field === 'clockOut' && shift && shift.clockOut) q('Still on shift', () => applyEdit({ clear: true }));
+      $('editModal').classList.add('open');
     }
+    function closeEdit() { $('editModal').classList.remove('open'); editingField = null; }
 
-    function closeEditModal() {
-      document.getElementById('editModal').style.display = 'none';
-      editingField = null;
-    }
+    function applyEdit(opts = {}) {
+      const now = Date.now();
+      const field = editingField;
+      let s = shift ? clone(shift) : null;
+      const err = msg => { $('editError').textContent = msg; };
 
-    function parseHMSToParts(str) {
-      const clean = str.trim();
-      const parts = clean.split(':').map(Number);
-      if (parts.length < 2 || parts.some(isNaN)) return null;
-      const h = parts[0];
-      const m = parts[1];
-      const s = parts[2] || 0;
-      if (h < 0 || h > 23 || m < 0 || m > 59 || s < 0 || s > 59) return null;
-      return { h, m, s };
-    }
-
-    function saveEditModal() {
-      const val = document.getElementById('modalInput').value;
-      const parts = parseHMSToParts(val);
-      if (!parts) {
-        alert('Please enter a valid time in HH:MM:SS format (e.g. 06:15:30).');
-        return;
-      }
-
-      if (editingField === 'breakDed') {
-        state.breakDeductionSec = parts.h * 3600 + parts.m * 60 + parts.s;
-      } else {
-        const baseMs = state.startTime || Date.now();
-        const d = new Date(baseMs);
-        d.setHours(parts.h, parts.m, parts.s, 0);
-        let targetMs = d.getTime();
-
-        if (editingField !== 'start' && state.startTime && targetMs < state.startTime) {
-          targetMs += 24 * 3600 * 1000;
-        }
-
-        if (editingField === 'start') state.startTime = targetMs;
-        if (editingField === 'lunch') state.lunchTime = targetMs;
-        if (editingField === 'end') state.endTime = targetMs;
+      if (opts.noBreak) { s.breakStart = null; s.breakEnd = null; s.noAutoBreak = true; s.breakStartAuto = s.breakEndAuto = false; }
+      else if (opts.planned) { s.noAutoBreak = false; s.breakStart = null; s.breakEnd = null; }
+      else if (opts.fullBreak) { s.breakEnd = null; s.breakEndAuto = true; }
+      else if (opts.clear) { s.clockOut = null; }
+      else {
+        const v = $('editInput').value;
+        if (!parseHM(v)) return err('Enter a time.');
+        let t;
+        if (field === 'clockIn') t = s ? nearest(v, s.clockIn) : lastAtOrBefore(v, now);
+        else t = firstAtOrAfter(v, s.clockIn);
+        if (t > now + MIN) return err('That time is in the future.');
+        if (!s) s = newShift(t);
+        s[field] = t;
+        if (field === 'breakStart') { s.breakStartAuto = false; s.noAutoBreak = false; if (s.breakEndAuto) { s.breakEnd = null; s.breakEndAuto = false; } }
+        if (field === 'breakEnd') s.breakEndAuto = false;
+        if (field === 'clockOut' && s.breakStart && !s.breakEnd) { s.breakEnd = Math.min(t, s.breakStart + breakLenMs(s)); }
       }
 
-      if (state.startTime && state.endTime) recordOrUpdateHistory();
-      saveData();
-      closeEditModal();
+      // Check the order makes sense
+      const seq = [['clockIn', s.clockIn], ['breakStart', s.breakStart], ['breakEnd', s.breakEnd], ['clockOut', s.clockOut]].filter(x => x[1] != null);
+      for (let i = 1; i < seq.length; i++) {
+        if (seq[i][1] < seq[i - 1][1]) return err(`${FIELD_NAMES[seq[i][0]]} can't be before ${FIELD_NAMES[seq[i - 1][0]].toLowerCase()}.`);
+      }
+      if (s.clockOut && s.clockOut - s.clockIn > 24 * 3600 * 1000) return err('That makes the shift longer than 24 hours.');
+
+      undoSnap = { shift: clone(shift), history: clone(history) };
+      shift = s;
+      fillPlan(shift, now);
+      if (shift.clockOut) upsertHistory(shift);
+      else history = history.filter(h => h.id !== shift.id);
+      save();
+      renderHistory();
+      closeEdit();
+      showToast(`${FIELD_NAMES[field]} updated`);
+      lastPhase = '__force__';
       tick();
     }
 
+    document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.edit)));
+    $('editCancel').addEventListener('click', closeEdit);
+    $('editSave').addEventListener('click', () => applyEdit());
+
+    // ---------- Settings ----------
+    function openSettings() {
+      $('setRotaStart').value = settings.rotaStart;
+      $('setRotaEnd').value = settings.rotaEnd;
+      $('setBreakStart').value = settings.breakStart;
+      $('setBreakMins').value = settings.breakMins;
+      $('setAutoBreak').checked = settings.autoBreak;
+      $('setMaxStint').value = settings.maxStintMins / 60;
+      $('setMinBreak').value = settings.minBreakMins;
+      $('setAmber').value = settings.amberMins;
+      $('setRed').value = settings.redMins;
+      $('settingsError').textContent = '';
+      $('settingsModal').classList.add('open');
+    }
+    function saveSettings() {
+      const times = ['setRotaStart', 'setRotaEnd', 'setBreakStart'].map(id => $(id).value);
+      if (times.some(t => !parseHM(t))) { $('settingsError').textContent = 'Fill in all three times.'; return; }
+      const num = (id, lo, hi) => { const n = parseFloat($(id).value); return isNaN(n) ? null : Math.min(hi, Math.max(lo, n)); };
+      const breakMins = num('setBreakMins', 0, 180), maxStint = num('setMaxStint', 0, 11),
+        minBreak = num('setMinBreak', 0, 120), amber = num('setAmber', 0, 180), red = num('setRed', 0, 180);
+      if ([breakMins, maxStint, minBreak, amber, red].some(n => n === null)) { $('settingsError').textContent = 'Fill in all the numbers.'; return; }
+      settings = {
+        ...settings, rotaStart: times[0], rotaEnd: times[1], breakStart: times[2],
+        breakMins: Math.round(breakMins), autoBreak: $('setAutoBreak').checked,
+        maxStintMins: Math.round(maxStint * 60), minBreakMins: Math.round(minBreak),
+        amberMins: Math.round(amber), redMins: Math.round(red)
+      };
+      save();
+      $('settingsModal').classList.remove('open');
+      renderHistory();
+      tick();
+    }
+    $('settingsBtn').addEventListener('click', openSettings);
+    $('settingsCancel').addEventListener('click', () => $('settingsModal').classList.remove('open'));
+    $('settingsSave').addEventListener('click', saveSettings);
+
+    // ---------- Logbook ----------
     function renderHistory() {
-      const container = document.getElementById('historyList');
+      const box = $('historyList');
+      box.innerHTML = '';
+      const now = Date.now();
+      $('weekTotal').textContent = `This week: ${dur(weekDuty(now), true)}`;
+
+      const days = meta.lastBackup ? Math.floor((now - meta.lastBackup) / 86400000) : null;
+      $('backupText').textContent = days === null ? 'Last backup: never' : `Last backup: ${days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago'}`;
+      $('backupLine').classList.toggle('stale', history.length > 0 && (days === null || days >= 7));
+
       if (!history.length) {
-        container.innerHTML = `<div style="font-size:0.8rem; color:var(--muted); text-align:center; padding:12px;">No shifts logged yet. Completed shifts save here automatically.</div>`;
+        box.innerHTML = `<div style="font-size:0.8rem; color:var(--muted); text-align:center; padding:12px;">No shifts logged yet. Shifts save here when you clock out.</div>`;
         return;
       }
-      container.innerHTML = history.map(item => `
-        <div class="history-item">
+      history.forEach(h => {
+        const c = calc(h, h.clockOut);
+        const over = c.duty - DUTY_LIMIT_MS;
+        const notes = companyNotes(h, c);
+        const el = document.createElement('div');
+        el.className = 'history-item';
+        el.innerHTML = `
           <div class="history-top">
-            <span class="history-date">${item.dateStr}</span>
-            <span class="badge ${item.isLegal ? 'badge-legal' : 'badge-breach'}">
-              ${item.isLegal ? 'LEGAL' : 'BREACH'}
+            <span class="history-date"></span>
+            <span style="display:flex; align-items:center; gap:4px;">
+              <span class="badge ${over > 0 ? 'badge-breach' : 'badge-legal'}">${over > 0 ? 'Over 11h' : 'Legal'}</span>
+              <button class="btn-x" title="Delete">×</button>
             </span>
           </div>
-          <div class="history-details mono">
-            Start: ${item.startStr} | Lunch: ${item.lunchStr} (-${item.breakDedStr}) | End: ${item.endStr}<br/>
-            <strong>Net Duty: ${item.netDutyStr}</strong> • ${item.verdictStr}<br/>
-            ${item.breakVerdictStr}
-          </div>
-        </div>
-      `).join('');
+          <div class="history-details mono"></div>`;
+        el.querySelector('.history-date').textContent = new Date(h.clockIn).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+        const breakTxt = h.breakStart ? `${hm(h.breakStart)}–${hm(h.breakEnd)} (${mins(c.breakTaken)}m)` : 'none';
+        const lines = [
+          `In ${hm(h.clockIn)} • Break ${breakTxt} • Out ${hm(h.clockOut)}`,
+          `Duty ${dur(c.duty)} — ${over > 0 ? dur(over) + ' over' : dur(-over) + ' under'} 11h`
+        ].concat(notes.map(n => 'Company rule: ' + n));
+        const det = el.querySelector('.history-details');
+        lines.forEach((t, i) => {
+          const d = document.createElement('div');
+          d.textContent = t;
+          if (i === 1) d.style.color = over > 0 ? '#f87171' : '#e2e8f0';
+          if (i > 1) d.style.color = '#fbbf24';
+          det.appendChild(d);
+        });
+        el.querySelector('.btn-x').addEventListener('click', () => {
+          if (!confirm('Delete this shift from the logbook?')) return;
+          undoSnap = { shift: clone(shift), history: clone(history) };
+          history = history.filter(x => x.id !== h.id);
+          save(); renderHistory(); showToast('Shift deleted');
+        });
+        box.appendChild(el);
+      });
     }
 
-    function exportCSV() {
-      if (!history.length) {
-        alert('No shift history to export yet.');
-        return;
-      }
-      const headers = ['Date','Shift Start','Lunch Start','Break Deducted','Shift End','Net Duty','Pre-Lunch Continuous','Duty Status','Break Status'];
-      const rows = history.map(h => [
-        `"${h.dateStr}"`, h.startStr, h.lunchStr, h.breakDedStr, h.endStr,
-        h.netDutyStr, h.preLunchStr, `"${h.verdictStr}"`, `"${h.breakVerdictStr}"`
-      ].join(','));
-      const csv = [headers.join(','), ...rows].join('\n');
-
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    function downloadBlob(blob, name) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `gb-driver-duty-log-${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
-
-    function clearHistory() {
-      if (confirm('Delete all saved shifts from your phone logbook?')) {
-        history = [];
-        saveData();
-        renderHistory();
+    async function shareOrDownload(text, name, type) {
+      const blob = new Blob([text], { type });
+      try {
+        const file = new File([blob], name, { type });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: name });
+          return true;
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return false;
       }
+      downloadBlob(blob, name);
+      return true;
     }
+    const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
-    loadData();
+    $('backupBtn').addEventListener('click', async () => {
+      const data = { app: 'driver-clock', version: 2, exportedAt: Date.now(), settings, shift, history };
+      const ok = await shareOrDownload(JSON.stringify(data), `driver-clock-backup-${today()}.json`, 'application/json');
+      if (ok) { meta.lastBackup = Date.now(); save(); renderHistory(); }
+    });
+    $('restoreBtn').addEventListener('click', () => $('restoreFile').click());
+    $('restoreFile').addEventListener('change', async e => {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      let data;
+      try { data = JSON.parse(await f.text()); } catch (err) { alert("That file isn't a Driver Clock backup."); return; }
+      if (!data || data.app !== 'driver-clock' || !Array.isArray(data.history)) { alert("That file isn't a Driver Clock backup."); return; }
+      const byId = new Map(history.map(h => [h.id, h]));
+      let added = 0;
+      data.history.forEach(h => {
+        if (h && h.id && typeof h.clockIn === 'number' && typeof h.clockOut === 'number' && !byId.has(h.id)) { byId.set(h.id, h); added++; }
+      });
+      if (!confirm(`Restore ${added} shift${added === 1 ? '' : 's'} and your settings from this backup? Shifts already on this phone are kept.`)) return;
+      history = [...byId.values()].sort((a, b) => b.clockIn - a.clockIn);
+      if (data.settings) settings = { ...DEFAULTS, ...data.settings };
+      if (!shift && data.shift && !data.shift.clockOut) shift = data.shift;
+      save(); renderHistory();
+      lastPhase = '__force__'; tick();
+      alert(`Restored ${added} shift${added === 1 ? '' : 's'}.`);
+    });
+
+    $('csvBtn').addEventListener('click', () => {
+      if (!history.length) { alert('No shifts to export yet.'); return; }
+      const rows = [['Date', 'Clock in', 'Break start', 'Back on duty', 'Break mins', 'Clock out', 'Duty', 'vs 11h limit', 'Company rule notes']];
+      history.forEach(h => {
+        const c = calc(h, h.clockOut);
+        const over = c.duty - DUTY_LIMIT_MS;
+        rows.push([
+          new Date(h.clockIn).toLocaleDateString('en-GB'), hm(h.clockIn), h.breakStart ? hm(h.breakStart) : '',
+          h.breakEnd ? hm(h.breakEnd) : '', mins(c.breakTaken), hm(h.clockOut), dur(c.duty),
+          over > 0 ? `OVER by ${dur(over)}` : `under by ${dur(-over)}`, companyNotes(h, c).join('; ')
+        ]);
+      });
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+      shareOrDownload(csv, `driver-clock-log-${today()}.csv`, 'text/csv');
+    });
+
+    // ---------- Start ----------
+    load();
+    renderHistory();
     tick();
     setInterval(tick, 250);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderHistory(); tick(); } });
   </script>
 </body>
 </html>
