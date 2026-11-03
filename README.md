@@ -19,9 +19,14 @@ Anything that isn't a genuine break counts as duty, so the app works from the br
 - **Clock out** is press-and-hold so a stray tap can't end the shift. Every action can be undone from the bar at the bottom.
 - **Logbook**: completed shifts with duty total, a weekly total, and CSV export.
 
-## Backups
+## Backups (and browsers that clear data on exit)
 
-Data is stored in the browser on your phone. Browsers can wipe it, for example Brave's clear-on-exit setting. Use **Back up** regularly (it opens the share sheet, so you can save it to Files or Drive) and **Restore** to load it back. On iPhone, adding the app to the Home Screen gives it storage separate from the browser.
+Data is stored in the browser on your phone. Browsers like Brave can be set to wipe it on exit, so the app is built to cope with that:
+
+- **Auto backup:** every time you clock out, a backup file goes straight to Downloads. You can turn this off in Settings. Downloads aren't touched when the browser clears its data.
+- **After a wipe:** with an empty logbook the app shows **Restore logbook from backup**. Pick the newest `driver-clock-backup-….json` from Downloads.
+- **Wiped mid-shift:** during rota hours the app offers **Already on shift? Clocked in at 07:00**, which is one tap. The break fills itself in if it's already passed. If you clocked in at another time, use the button below it.
+- **Back up** can also be tapped any time. It opens the share sheet, e.g. to save a copy to Drive.
 
 ## Files
 

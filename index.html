@@ -318,7 +318,7 @@
 
   <p class="footnote">
     11h duty limit: GB domestic drivers' hours rules (the law). Break timing and minimum break length are company rules, shown as warnings only.
-    Keep your own backups: browser data can be cleared. Not legal advice.
+    If your browser clears data on exit, a backup file is saved to Downloads at each clock-out. Use "Restore" to load the latest one. Not legal advice.
   </p>
 
   <!-- Edit time modal -->
@@ -348,6 +348,7 @@
         <div class="field"><label for="setBreakMins">Break (mins)</label><input type="number" id="setBreakMins" min="0" max="180" step="5" /></div>
       </div>
       <label class="check"><input type="checkbox" id="setAutoBreak" /> Start the break automatically at the planned time</label>
+      <label class="check"><input type="checkbox" id="setAutoBackup" /> Save a backup file to Downloads every time I clock out</label>
       <div class="grid-2" style="margin-bottom:0;">
         <div class="field"><label for="setMaxStint">Max hrs before break</label><input type="number" id="setMaxStint" min="0" max="11" step="0.5" /><div class="hint">Company rule. 0 = off</div></div>
         <div class="field"><label for="setMinBreak">Min break (mins)</label><input type="number" id="setMinBreak" min="0" max="120" step="5" /><div class="hint">Company rule. 0 = off</div></div>
@@ -381,7 +382,7 @@
     const MIN = 60 * 1000;
     const KEYS = { settings: 'dc_settings_v2', shift: 'dc_shift_v2', history: 'dc_history_v2', meta: 'dc_meta_v2' };
     const DEFAULTS = {
-      rotaStart: '07:00', rotaEnd: '19:00', breakStart: '12:30', breakMins: 60, autoBreak: true,
+      rotaStart: '07:00', rotaEnd: '19:00', breakStart: '12:30', breakMins: 60, autoBreak: true, autoBackup: true,
       maxStintMins: 360, minBreakMins: 45, amberMins: 30, redMins: 15
     };
 
@@ -598,6 +599,7 @@
       if (shift.breakStart && !shift.breakEnd) { shift.breakEnd = now; shift.breakEndAuto = false; }
       shift.clockOut = now;
       upsertHistory(shift);
+      if (settings.autoBackup) autoBackup();
     }, `Clocked out at ${hm(Date.now())}`);
 
     function showToast(msg) {
@@ -658,7 +660,16 @@
       const add = b => { area.appendChild(b); return b; };
       if (phase === 'idle' || phase === 'done') {
         add(makeBtn('btn-start', phase === 'done' ? 'CLOCK IN (NEXT SHIFT)' : 'CLOCK IN', doClockIn));
-        add(makeBtn('btn-plain small', 'Already clocked in? Set the time', () => openEdit('clockIn')));
+        // Data wiped mid-shift? During rota hours, offer to pick the shift back up in one tap.
+        const now = Date.now();
+        const rotaIn = lastAtOrBefore(settings.rotaStart, now);
+        const rotaOut = firstAtOrAfter(settings.rotaEnd, rotaIn);
+        if (now > rotaIn && now < rotaOut && (!shift || shift.clockIn < rotaIn)) {
+          add(makeBtn('btn-plain small', `Already on shift? Clocked in at ${settings.rotaStart}`,
+            () => act(() => { shift = newShift(rotaIn); }, `Clocked in at ${settings.rotaStart}`)));
+        }
+        add(makeBtn('btn-plain small', 'Clocked in at a different time? Set it', () => openEdit('clockIn')));
+        if (!history.length) add(makeBtn('btn-plain small', 'Restore logbook from backup', () => $('restoreFile').click()));
       } else if (phase === 'pre') {
         add(makeBtn('btn-break', 'START BREAK NOW', doStartBreak));
         add(makeHoldBtn('btn-end small', 'Hold to clock out early', 1000, doClockOut));
@@ -928,6 +939,7 @@
       $('setBreakStart').value = settings.breakStart;
       $('setBreakMins').value = settings.breakMins;
       $('setAutoBreak').checked = settings.autoBreak;
+      $('setAutoBackup').checked = settings.autoBackup;
       $('setMaxStint').value = settings.maxStintMins / 60;
       $('setMinBreak').value = settings.minBreakMins;
       $('setAmber').value = settings.amberMins;
@@ -944,7 +956,7 @@
       if ([breakMins, maxStint, minBreak, amber, red].some(n => n === null)) { $('settingsError').textContent = 'Fill in all the numbers.'; return; }
       settings = {
         ...settings, rotaStart: times[0], rotaEnd: times[1], breakStart: times[2],
-        breakMins: Math.round(breakMins), autoBreak: $('setAutoBreak').checked,
+        breakMins: Math.round(breakMins), autoBreak: $('setAutoBreak').checked, autoBackup: $('setAutoBackup').checked,
         maxStintMins: Math.round(maxStint * 60), minBreakMins: Math.round(minBreak),
         amberMins: Math.round(amber), redMins: Math.round(red)
       };
@@ -1034,9 +1046,16 @@
     }
     const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
+    const backupJSON = () => JSON.stringify({ app: 'driver-clock', version: 2, exportedAt: Date.now(), settings, shift, history });
+    // Straight to Downloads, no share sheet: survives the browser clearing its data on exit.
+    function autoBackup() {
+      try {
+        downloadBlob(new Blob([backupJSON()], { type: 'application/json' }), `driver-clock-backup-${today()}.json`);
+        meta.lastBackup = Date.now();
+      } catch (e) {}
+    }
     $('backupBtn').addEventListener('click', async () => {
-      const data = { app: 'driver-clock', version: 2, exportedAt: Date.now(), settings, shift, history };
-      const ok = await shareOrDownload(JSON.stringify(data), `driver-clock-backup-${today()}.json`, 'application/json');
+      const ok = await shareOrDownload(backupJSON(), `driver-clock-backup-${today()}.json`, 'application/json');
       if (ok) { meta.lastBackup = Date.now(); save(); renderHistory(); }
     });
     $('restoreBtn').addEventListener('click', () => $('restoreFile').click());
