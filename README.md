@@ -15,7 +15,7 @@ Anything that isn't a genuine break counts as duty, so the app works from the br
 ## Using it
 
 - **Settings**: rota start/finish, break start and length, and optional company-rule warnings (max hours before a break, minimum break length). These warnings never mark a shift as illegal. Only the 11h duty limit does.
-- **Today's times**: edit any time if you forgot to tap or the break started late. If the app's data was lost mid-shift, use *Already clocked in? Set the time*.
+- **Today's times**: edit any time if you forgot to tap or the break started late. If the app's data was lost mid-shift, see Backups below.
 - **Clock out** is press-and-hold so a stray tap can't end the shift. Every action can be undone from the bar at the bottom.
 - **Logbook**: completed shifts with duty total, a weekly total, and CSV export.
 
