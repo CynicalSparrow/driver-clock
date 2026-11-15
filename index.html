@@ -381,7 +381,7 @@
         <div class="field"><label for="setRed">Red at (mins left)</label><input type="number" id="setRed" min="0" max="180" step="5" /></div>
       </div>
       <div class="field"><label for="setGrace">Late-arrival adjustment (mins)</label><input type="number" id="setGrace" min="0" max="60" step="1" />
-        <div class="hint">Arriving within this many minutes of rota start counts as on time, and duty is counted from rota start (as your employer pays it). Your exact arrival is still recorded. 0 = off.</div></div>
+        <div class="hint">Your actual arrival time is recorded and marked as within the adjustment when it is. Duty is always counted from rota start, since lateness isn't docked. 0 = off.</div></div>
       <div class="error" id="settingsError"></div>
       <div class="modal-actions">
         <button class="btn-cancel" id="settingsCancel">Cancel</button>
@@ -568,22 +568,29 @@
       return { g: g || 0, rotaStart: s.rotaStart || settings.rotaStart };
     }
     function rotaStartFor(s) { return nearest(graceOf(s).rotaStart, s.clockIn); }
-    // When duty is counted from: rota start if you arrived within the adjustment, otherwise your clock-in.
+    // Lateness isn't docked, so duty counts from rota start however late the arrival is.
+    // (Beyond 2 hours it's treated as a different shift and counted from the clock-in.)
+    const LATE_CAP_MS = 2 * 3600 * 1000;
     function dutyStartOf(s) {
       const { g } = graceOf(s);
       if (!g) return s.clockIn;
       const rs = rotaStartFor(s);
-      return s.clockIn > rs && floorMin(s.clockIn) <= rs + g * MIN ? rs : s.clockIn;
+      return s.clockIn > rs && s.clockIn - rs <= LATE_CAP_MS ? rs : s.clockIn;
+    }
+    function withinAdjustment(s) {
+      const { g } = graceOf(s);
+      const rs = rotaStartFor(s);
+      return g > 0 && s.clockIn > rs && floorMin(s.clockIn) <= rs + g * MIN;
     }
     // Plain-English arrival line for the record, or null if there's nothing to say.
     function arrivalText(s) {
       const { g } = graceOf(s);
       const rs = rotaStartFor(s);
-      if (!g || s.clockIn <= rs) return null;
-      const late = mins(s.clockIn - rs);
-      return dutyStartOf(s) !== s.clockIn
-        ? { ok: true, text: `Arrived ${hm(s.clockIn)}: within ${g}-min adjustment, duty counted from ${hm(rs)}` }
-        : { ok: false, text: `Arrived ${hm(s.clockIn)}: ${late} min after ${hm(rs)} start (adjustment ${g} min)` };
+      if (!g || floorMin(s.clockIn) <= rs) return null;
+      const from = dutyStartOf(s) !== s.clockIn ? `, duty counted from ${hm(rs)}` : '';
+      return withinAdjustment(s)
+        ? { ok: true, text: `Arrived ${hm(s.clockIn)}: within ${g}-min adjustment${from}` }
+        : { ok: false, text: `Arrived ${hm(s.clockIn)}: ${mins(s.clockIn - rs)} min after ${hm(rs)} start${from}` };
     }
     function calc(s, now) {
       const until = s.clockOut != null ? s.clockOut : now;
@@ -823,7 +830,7 @@
       $('tlIn').textContent = hm(shift && shift.clockIn);
       const dsLive = shift ? dutyStartOf(shift) : null;
       $('tlInSub').textContent = shift && dsLive !== shift.clockIn
-        ? `Within ${graceOf(shift).g}-min adjustment: duty from ${hm(dsLive)}`
+        ? (withinAdjustment(shift) ? `Within ${graceOf(shift).g}-min adjustment: duty from ${hm(dsLive)}` : `Duty counted from ${hm(dsLive)}`)
         : 'Duty starts when you start work';
       $('tlBs').textContent = hm(shift && shift.breakStart);
       $('tlBe').textContent = hm(shift && shift.breakEnd);
@@ -918,7 +925,7 @@
       }
 
       const arrLive = arrivalText(shift);
-      if (arrLive && arrLive.ok && now - shift.clockIn < 3 * 3600 * 1000) notes.push(['note-ok', arrLive.text]);
+      if (arrLive && now - shift.clockIn < 3 * 3600 * 1000) notes.push([arrLive.ok ? 'note-ok' : '', arrLive.text]);
 
       if (phase === 'pre') {
         dot.className = 'dot active'; status.textContent = 'On duty • before break';
@@ -1307,7 +1314,7 @@
         const c = calc(h, h.clockOut);
         const over = c.duty - DUTY_LIMIT_MS;
         const g = graceOf(h).g, rs = rotaStartFor(h), ds = dutyStartOf(h);
-        const arrival = h.clockIn <= rs ? 'on time' : (ds !== h.clockIn ? `within ${g}-min adjustment` : `${mins(h.clockIn - rs)} min after start`);
+        const arrival = floorMin(h.clockIn) <= rs ? 'on time' : (withinAdjustment(h) ? `within ${g}-min adjustment` : `${mins(h.clockIn - rs)} min after start`);
         rows.push([
           new Date(h.clockIn).toLocaleDateString('en-GB'), hm(h.clockIn), hm(rs), arrival, hm(ds),
           h.breakStart ? hm(h.breakStart) : '', h.breakEnd ? hm(h.breakEnd) : '', mins(c.breakTaken), hm(h.clockOut), dur(c.duty),
