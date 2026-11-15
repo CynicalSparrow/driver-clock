@@ -380,6 +380,8 @@
         <div class="field"><label for="setAmber">Amber at (mins left)</label><input type="number" id="setAmber" min="0" max="180" step="5" /></div>
         <div class="field"><label for="setRed">Red at (mins left)</label><input type="number" id="setRed" min="0" max="180" step="5" /></div>
       </div>
+      <div class="field"><label for="setGrace">Late-arrival adjustment (mins)</label><input type="number" id="setGrace" min="0" max="60" step="1" />
+        <div class="hint">Arriving within this many minutes of rota start counts as on time, and duty is counted from rota start (as your employer pays it). Your exact arrival is still recorded. 0 = off.</div></div>
       <div class="error" id="settingsError"></div>
       <div class="modal-actions">
         <button class="btn-cancel" id="settingsCancel">Cancel</button>
@@ -408,7 +410,7 @@
     const KEYS = { settings: 'dc_settings_v2', shift: 'dc_shift_v2', history: 'dc_history_v2', meta: 'dc_meta_v2' };
     const DEFAULTS = {
       rotaStart: '07:00', rotaEnd: '19:00', breakStart: '12:30', breakMins: 60, autoBreak: true, autoBackup: true,
-      maxStintMins: 360, minBreakMins: 45, amberMins: 30, redMins: 15
+      maxStintMins: 360, minBreakMins: 45, amberMins: 30, redMins: 15, graceMins: 0
     };
 
     let settings = { ...DEFAULTS };
@@ -558,16 +560,42 @@
       return 'post';
     }
 
+    // Late-arrival adjustment: each shift keeps the rota start and adjustment that applied when it was
+    // recorded, so changing Settings later doesn't rewrite old shifts. A live shift with no snapshot
+    // uses current Settings.
+    function graceOf(s) {
+      const g = s.graceMins != null ? s.graceMins : (!s.clockOut ? settings.graceMins : 0);
+      return { g: g || 0, rotaStart: s.rotaStart || settings.rotaStart };
+    }
+    function rotaStartFor(s) { return nearest(graceOf(s).rotaStart, s.clockIn); }
+    // When duty is counted from: rota start if you arrived within the adjustment, otherwise your clock-in.
+    function dutyStartOf(s) {
+      const { g } = graceOf(s);
+      if (!g) return s.clockIn;
+      const rs = rotaStartFor(s);
+      return s.clockIn > rs && floorMin(s.clockIn) <= rs + g * MIN ? rs : s.clockIn;
+    }
+    // Plain-English arrival line for the record, or null if there's nothing to say.
+    function arrivalText(s) {
+      const { g } = graceOf(s);
+      const rs = rotaStartFor(s);
+      if (!g || s.clockIn <= rs) return null;
+      const late = mins(s.clockIn - rs);
+      return dutyStartOf(s) !== s.clockIn
+        ? { ok: true, text: `Arrived ${hm(s.clockIn)}: within ${g}-min adjustment, duty counted from ${hm(rs)}` }
+        : { ok: false, text: `Arrived ${hm(s.clockIn)}: ${late} min after ${hm(rs)} start (adjustment ${g} min)` };
+    }
     function calc(s, now) {
       const until = s.clockOut != null ? s.clockOut : now;
       const bs = s.breakStart, be = s.breakEnd;
       let breakTaken = 0;
       if (bs != null && until > bs) breakTaken = Math.max(0, Math.min(be != null ? be : Infinity, until) - bs);
-      const duty = Math.max(0, until - s.clockIn - breakTaken);
+      const ds = dutyStartOf(s);
+      const duty = Math.max(0, until - ds - breakTaken);
       // Before/during the break assume the full planned break; afterwards use what was actually taken.
       const breakForLimit = be != null && bs != null ? be - bs : breakLenMs(s);
-      const hardStop = s.clockIn + DUTY_LIMIT_MS + breakForLimit;
-      const preStint = Math.max(0, Math.min(bs != null ? bs : until, until) - s.clockIn);
+      const hardStop = ds + DUTY_LIMIT_MS + breakForLimit;
+      const preStint = Math.max(0, Math.min(bs != null ? bs : until, until) - ds);
       const postStint = be != null ? Math.max(0, until - be) : 0;
       return { until, duty, breakTaken, hardStop, preStint, postStint };
     }
@@ -633,7 +661,8 @@
     }
 
     function newShift(clockIn) {
-      return { id: 's' + Date.now(), clockIn, breakStart: null, breakEnd: null, clockOut: null, breakMins: settings.breakMins };
+      return { id: 's' + Date.now(), clockIn, breakStart: null, breakEnd: null, clockOut: null, breakMins: settings.breakMins,
+        rotaStart: settings.rotaStart, graceMins: settings.graceMins };
     }
     const doClockIn = () => act(now => { shift = newShift(now); }, `Clocked in at ${hm(Date.now())}`);
     const doStartBreak = () => act(now => { shift.breakStart = now; shift.breakStartAuto = false; }, `Break started at ${hm(Date.now())}`);
@@ -792,6 +821,10 @@
 
       // Timeline
       $('tlIn').textContent = hm(shift && shift.clockIn);
+      const dsLive = shift ? dutyStartOf(shift) : null;
+      $('tlInSub').textContent = shift && dsLive !== shift.clockIn
+        ? `Within ${graceOf(shift).g}-min adjustment: duty from ${hm(dsLive)}`
+        : 'Duty starts when you start work';
       $('tlBs').textContent = hm(shift && shift.breakStart);
       $('tlBe').textContent = hm(shift && shift.breakEnd);
       $('tlOut').textContent = hm(shift && shift.clockOut);
@@ -883,6 +916,9 @@
         notes.push(['note-warn', `Legal finish is ${hm(c.hardStop)}, before your rota finish of ${hm(rotaEnd)}` +
           (why.length ? ` (${why.join(' + ')})` : '')]);
       }
+
+      const arrLive = arrivalText(shift);
+      if (arrLive && arrLive.ok && now - shift.clockIn < 3 * 3600 * 1000) notes.push(['note-ok', arrLive.text]);
 
       if (phase === 'pre') {
         dot.className = 'dot active'; status.textContent = 'On duty • before break';
@@ -1023,6 +1059,7 @@
       $('setMinBreak').value = settings.minBreakMins;
       $('setAmber').value = settings.amberMins;
       $('setRed').value = settings.redMins;
+      $('setGrace').value = settings.graceMins;
       $('settingsError').textContent = '';
       $('settingsModal').classList.add('open');
     }
@@ -1031,13 +1068,13 @@
       if (times.some(t => !parseHM(t))) { $('settingsError').textContent = 'Fill in all three times.'; return; }
       const num = (id, lo, hi) => { const n = parseFloat($(id).value); return isNaN(n) ? null : Math.min(hi, Math.max(lo, n)); };
       const breakMins = num('setBreakMins', 0, 180), maxStint = num('setMaxStint', 0, 11),
-        minBreak = num('setMinBreak', 0, 120), amber = num('setAmber', 0, 180), red = num('setRed', 0, 180);
-      if ([breakMins, maxStint, minBreak, amber, red].some(n => n === null)) { $('settingsError').textContent = 'Fill in all the numbers.'; return; }
+        minBreak = num('setMinBreak', 0, 120), amber = num('setAmber', 0, 180), red = num('setRed', 0, 180), grace = num('setGrace', 0, 60);
+      if ([breakMins, maxStint, minBreak, amber, red, grace].some(n => n === null)) { $('settingsError').textContent = 'Fill in all the numbers.'; return; }
       settings = {
         ...settings, rotaStart: times[0], rotaEnd: times[1], breakStart: times[2],
         breakMins: Math.round(breakMins), autoBreak: $('setAutoBreak').checked, autoBackup: $('setAutoBackup').checked,
         maxStintMins: Math.round(maxStint * 60), minBreakMins: Math.round(minBreak),
-        amberMins: Math.round(amber), redMins: Math.round(red)
+        amberMins: Math.round(amber), redMins: Math.round(red), graceMins: Math.round(grace)
       };
       save();
       $('settingsModal').classList.remove('open');
@@ -1081,16 +1118,18 @@
           <div class="history-details mono"></div>`;
         el.querySelector('.history-date').textContent = new Date(h.clockIn).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
         const breakTxt = h.breakStart ? `${hm(h.breakStart)}–${hm(h.breakEnd)} (${mins(c.breakTaken)}m)` : 'none';
+        const arr = arrivalText(h);
         const lines = [
-          `In ${hm(h.clockIn)} • Break ${breakTxt} • Out ${hm(h.clockOut)}`,
-          `Duty ${dur(c.duty)} — ${over > 0 ? dur(over) + ' over' : dur(-over) + ' under'} 11h`
-        ].concat(notes.map(n => 'Company rule: ' + n));
+          [`In ${hm(h.clockIn)} • Break ${breakTxt} • Out ${hm(h.clockOut)}`, ''],
+          arr ? [arr.text, arr.ok ? '#34d399' : '#e2e8f0'] : null,
+          [`Duty ${dur(c.duty)} — ${over > 0 ? dur(over) + ' over' : dur(-over) + ' under'} 11h`, over > 0 ? '#f87171' : '#e2e8f0'],
+          ...notes.map(n => ['Company rule: ' + n, '#fbbf24'])
+        ].filter(Boolean);
         const det = el.querySelector('.history-details');
-        lines.forEach((t, i) => {
+        lines.forEach(([t, color]) => {
           const d = document.createElement('div');
           d.textContent = t;
-          if (i === 1) d.style.color = over > 0 ? '#f87171' : '#e2e8f0';
-          if (i > 1) d.style.color = '#fbbf24';
+          if (color) d.style.color = color;
           det.appendChild(d);
         });
         el.querySelector('.btn-edit-h').addEventListener('click', () => openShiftEditor(h.id));
@@ -1144,6 +1183,7 @@
       const at = v => firstAtOrAfter(v, clockIn);
       const h = shiftEditId ? history.find(x => x.id === shiftEditId) : null;
       const s = h ? clone(h) : { id: 's' + Date.now(), breakMins: settings.breakMins };
+      if (s.graceMins == null) { s.graceMins = settings.graceMins; s.rotaStart = settings.rotaStart; }
       s.clockIn = clockIn;
       s.clockOut = at($('shOut').value);
       s.breakStartAuto = false; s.breakEndAuto = false; s.noAutoBreak = false;
@@ -1170,6 +1210,8 @@
       el.innerHTML = '';
       const line = (text, color) => { const d = document.createElement('div'); d.textContent = text; if (color) d.style.color = color; el.appendChild(d); };
       line(`${dayLabel(s.clockIn)} ${hm(s.clockIn)} → ${s.clockOut - s.clockIn >= 0 && ymd(s.clockOut) !== ymd(s.clockIn) ? dayLabel(s.clockOut) + ' ' : ''}${hm(s.clockOut)} • break ${mins(c.breakTaken)} min`);
+      const arr = arrivalText(s);
+      if (arr) line(arr.text, arr.ok ? '#34d399' : '#e2e8f0');
       line(`Duty ${dur(c.duty)} — ${over > 0 ? dur(over) + ' OVER 11h' : 'legal, ' + dur(-over) + ' spare'}`, over > 0 ? '#f87171' : '#34d399');
       notes.forEach(n => line('Company rule: ' + n, '#fbbf24'));
     }
@@ -1260,13 +1302,15 @@
 
     $('csvBtn').addEventListener('click', () => {
       if (!history.length) { alert('No shifts to export yet.'); return; }
-      const rows = [['Date', 'Clock in', 'Break start', 'Back on duty', 'Break mins', 'Clock out', 'Duty', 'vs 11h limit', 'Company rule notes']];
+      const rows = [['Date', 'Clock in', 'Rota start', 'Arrival', 'Duty counted from', 'Break start', 'Back on duty', 'Break mins', 'Clock out', 'Duty', 'vs 11h limit', 'Company rule notes']];
       history.forEach(h => {
         const c = calc(h, h.clockOut);
         const over = c.duty - DUTY_LIMIT_MS;
+        const g = graceOf(h).g, rs = rotaStartFor(h), ds = dutyStartOf(h);
+        const arrival = h.clockIn <= rs ? 'on time' : (ds !== h.clockIn ? `within ${g}-min adjustment` : `${mins(h.clockIn - rs)} min after start`);
         rows.push([
-          new Date(h.clockIn).toLocaleDateString('en-GB'), hm(h.clockIn), h.breakStart ? hm(h.breakStart) : '',
-          h.breakEnd ? hm(h.breakEnd) : '', mins(c.breakTaken), hm(h.clockOut), dur(c.duty),
+          new Date(h.clockIn).toLocaleDateString('en-GB'), hm(h.clockIn), hm(rs), arrival, hm(ds),
+          h.breakStart ? hm(h.breakStart) : '', h.breakEnd ? hm(h.breakEnd) : '', mins(c.breakTaken), hm(h.clockOut), dur(c.duty),
           over > 0 ? `OVER by ${dur(over)}` : `under by ${dur(-over)}`, companyNotes(h, c).join('; ')
         ]);
       });
