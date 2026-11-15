@@ -176,7 +176,7 @@
     }
     .modal h3 { font-size: 1rem; margin-bottom: 6px; }
     .modal p { font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; line-height: 1.4; }
-    .modal input[type="time"], .modal input[type="number"] {
+    .modal input[type="time"], .modal input[type="number"], .modal input[type="date"] {
       width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--card-border);
       background: var(--bg); color: var(--text); font-size: 1.2rem; font-weight: 700; text-align: center;
       color-scheme: dark;
@@ -208,6 +208,8 @@
       background: #334155; color: var(--text); border: none; padding: 6px 10px;
       border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
     }
+    .history-actions { display: flex; align-items: center; gap: 6px; }
+    .shift-preview { font-size: 0.82rem; line-height: 1.5; margin-bottom: 10px; min-height: 1.5em; }
     .btn-x { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 0 4px; }
     .backup-line { font-size: 0.75rem; color: var(--muted); margin-bottom: 10px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
     .backup-line.stale { color: #fbbf24; }
@@ -311,6 +313,7 @@
       <button class="btn-small" id="backupBtn">Back up</button>
       <button class="btn-small" id="restoreBtn">Restore</button>
       <button class="btn-small" id="csvBtn">Export CSV</button>
+      <button class="btn-small" id="addShiftBtn">+ Add missed shift</button>
     </div>
     <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" />
     <div id="historyList"></div>
@@ -332,6 +335,28 @@
       <div class="modal-actions">
         <button class="btn-cancel" id="editCancel">Cancel</button>
         <button class="btn-save" id="editSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit / add a logbook shift -->
+  <div class="modal-backdrop" id="shiftModal">
+    <div class="modal">
+      <h3 id="shiftTitle">Edit shift</h3>
+      <p id="shiftDesc">Times on the 24-hour clock. A clock-out earlier than the clock-in counts as the next morning.</p>
+      <div class="field"><label for="shDate">Date (day you clocked in)</label><input type="date" id="shDate" /></div>
+      <div class="grid-2" style="margin-bottom:0;">
+        <div class="field"><label for="shIn">Clocked in</label><input type="time" id="shIn" /></div>
+        <div class="field"><label for="shOut">Clocked out</label><input type="time" id="shOut" /></div>
+        <div class="field"><label for="shBs">Break started</label><input type="time" id="shBs" /></div>
+        <div class="field"><label for="shBe">Back on duty</label><input type="time" id="shBe" /></div>
+      </div>
+      <label class="check"><input type="checkbox" id="shNoBreak" /> No break taken</label>
+      <div class="shift-preview mono" id="shiftPreview"></div>
+      <div class="error" id="shiftError"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="shiftCancel">Cancel</button>
+        <button class="btn-save" id="shiftSave">Save</button>
       </div>
     </div>
   </div>
@@ -589,6 +614,24 @@
       if (i >= 0) history[i] = entry; else history.push(entry);
       history.sort((a, b) => b.clockIn - a.clockIn);
     }
+    const dayLabel = ms => new Date(ms).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
+    // A shift still open 2h past both the rota finish and the legal finish was almost certainly not clocked out.
+    function isForgotten(s, now) {
+      return !!s && !s.clockOut && now > Math.max(rotaEndFor(s), calc(s, now).hardStop) + 2 * 3600 * 1000;
+    }
+    function suggestedClockOut(s) {
+      return Math.max(rotaEndFor(s), s.breakEnd || s.breakStart || s.clockIn);
+    }
+    function doFixForgotten() {
+      const t = suggestedClockOut(shift);
+      act(() => {
+        if (shift.breakStart && !shift.breakEnd) { shift.breakEnd = Math.min(t, shift.breakStart + breakLenMs(shift)); shift.breakEndAuto = true; }
+        shift.clockOut = t;
+        upsertHistory(shift);
+        if (settings.autoBackup) autoBackup();
+      }, `Clocked out at ${hm(t)} on ${dayLabel(t)}`);
+    }
+
     function newShift(clockIn) {
       return { id: 's' + Date.now(), clockIn, breakStart: null, breakEnd: null, clockOut: null, breakMins: settings.breakMins };
     }
@@ -678,6 +721,11 @@
         add(makeHoldBtn('btn-end small', 'Hold to clock out', 1000, doClockOut));
       } else if (phase === 'post') {
         add(makeHoldBtn('btn-end', 'HOLD TO CLOCK OUT', 1000, doClockOut));
+        add(makeBtn('btn-plain small', 'Already clocked out? Set the time', () => openEdit('clockOut')));
+      } else if (phase === 'forgot') {
+        const t = suggestedClockOut(shift);
+        add(makeBtn('btn-start', `I CLOCKED OUT AT ${hm(t)} (${dayLabel(t).toUpperCase()})`, doFixForgotten));
+        add(makeBtn('btn-plain small', 'Clocked out at a different time? Set it', () => openEdit('clockOut')));
       }
       if (lockout) {
         const btns = area.querySelectorAll('button');
@@ -731,7 +779,8 @@
     function tick() {
       const now = Date.now();
       if (shift && !shift.clockOut && fillPlan(shift, now)) save();
-      const phase = phaseOf(shift);
+      let phase = phaseOf(shift);
+      if (['pre', 'break', 'post'].includes(phase) && isForgotten(shift, now)) phase = 'forgot';
       if (phase !== lastPhase) {
         renderActions(phase, lastPhase !== null);
         lastPhase = phase;
@@ -797,6 +846,26 @@
         return;
       }
 
+      if (phase === 'forgot') {
+        const t = suggestedClockOut(shift);
+        const cOut = calc({ ...shift, clockOut: t, breakEnd: shift.breakEnd || Math.min(t, (shift.breakStart || t) + breakLenMs(shift)) }, t);
+        const overOut = cOut.duty - DUTY_LIMIT_MS;
+        dot.className = 'dot done'; status.textContent = 'Shift still open';
+        setTheme('theme-amber');
+        $('heroLabel').textContent = 'Forgot to clock out?';
+        $('heroTimer').textContent = hm(t);
+        $('heroDeadline').textContent = `Shift from ${dayLabel(shift.clockIn)} ${hm(shift.clockIn)} is still open`;
+        notes.push(['', 'Nothing goes in your logbook until you set when you clocked out.']);
+        $('cardALabel').textContent = 'Rota finish';
+        $('cardAValue').textContent = hm(t);
+        $('cardAMeta').textContent = dayLabel(t);
+        $('cardBLabel').textContent = 'Duty if out then';
+        $('cardBValue').textContent = dur(cOut.duty);
+        $('cardBMeta').textContent = overOut > 0 ? `${dur(overOut, true)} over 11h` : `Legal • ${dur(-overOut, true)} spare`;
+        setNotes(notes);
+        return;
+      }
+
       // Shared cards while on shift
       $('cardALabel').textContent = 'Must clock out by';
       $('cardAValue').textContent = hm(c.hardStop);
@@ -857,6 +926,16 @@
     // ---------- Edit times ----------
     const FIELD_NAMES = { clockIn: 'Clocked in', breakStart: 'Break started', breakEnd: 'Back on duty', clockOut: 'Clocked out' };
 
+    function validateShift(s, now) {
+      const seq = [['clockIn', s.clockIn], ['breakStart', s.breakStart], ['breakEnd', s.breakEnd], ['clockOut', s.clockOut]].filter(x => x[1] != null);
+      for (let i = 1; i < seq.length; i++) {
+        if (seq[i][1] < seq[i - 1][1]) return `${FIELD_NAMES[seq[i][0]]} can't be before ${FIELD_NAMES[seq[i - 1][0]].toLowerCase()}.`;
+      }
+      if (s.clockOut && s.clockOut - s.clockIn > 24 * 3600 * 1000) return 'That makes the shift longer than 24 hours.';
+      if (Math.max(s.clockIn, s.clockOut || 0) > now + MIN) return 'That time is in the future.';
+      return null;
+    }
+
     function openEdit(field) {
       if (field !== 'clockIn' && !shift) { alert('Clock in first (or set your clock-in time).'); return; }
       if (field === 'breakEnd' && !shift.breakStart) { alert('Set the break start first.'); return; }
@@ -864,14 +943,18 @@
       $('editTitle').textContent = FIELD_NAMES[field];
       $('editError').textContent = '';
       const current = shift && shift[field];
-      $('editInput').value = current ? hm(current) : (field === 'clockIn' && !shift ? settings.rotaStart : hm(Date.now()));
+      let prefill = hm(Date.now());
+      if (field === 'clockIn' && !shift) prefill = settings.rotaStart;
+      if (field === 'clockOut' && shift && !shift.clockOut && Date.now() > rotaEndFor(shift)) prefill = hm(suggestedClockOut(shift));
+      $('editInput').value = current ? hm(current) : prefill;
       const descs = {
         clockIn: 'When you actually started work. Starting early moves your legal finish earlier.',
         breakStart: 'When your break actually started.',
         breakEnd: 'When you went back to work. A short break moves your legal finish earlier.',
         clockOut: shift && !shift.clockOut ? 'Setting this ends the shift and saves it to the logbook.' : 'When you clocked out.'
       };
-      $('editDesc').textContent = descs[field];
+      $('editDesc').textContent = descs[field] +
+        (shift && field !== 'clockIn' && ymd(shift.clockIn) !== ymd(Date.now()) ? ` This is for the shift that started ${dayLabel(shift.clockIn)} ${hm(shift.clockIn)}.` : '');
       const quick = $('editQuick');
       quick.innerHTML = '';
       const q = (label, fn) => { const b = document.createElement('button'); b.className = 'btn-small'; b.textContent = label; b.addEventListener('click', fn); quick.appendChild(b); };
@@ -908,12 +991,8 @@
         if (field === 'clockOut' && s.breakStart && !s.breakEnd) { s.breakEnd = Math.min(t, s.breakStart + breakLenMs(s)); }
       }
 
-      // Check the order makes sense
-      const seq = [['clockIn', s.clockIn], ['breakStart', s.breakStart], ['breakEnd', s.breakEnd], ['clockOut', s.clockOut]].filter(x => x[1] != null);
-      for (let i = 1; i < seq.length; i++) {
-        if (seq[i][1] < seq[i - 1][1]) return err(`${FIELD_NAMES[seq[i][0]]} can't be before ${FIELD_NAMES[seq[i - 1][0]].toLowerCase()}.`);
-      }
-      if (s.clockOut && s.clockOut - s.clockIn > 24 * 3600 * 1000) return err('That makes the shift longer than 24 hours.');
+      const bad = validateShift(s, now);
+      if (bad) return err(bad);
 
       undoSnap = { shift: clone(shift), history: clone(history) };
       shift = s;
@@ -993,8 +1072,9 @@
         el.innerHTML = `
           <div class="history-top">
             <span class="history-date"></span>
-            <span style="display:flex; align-items:center; gap:4px;">
+            <span class="history-actions">
               <span class="badge ${over > 0 ? 'badge-breach' : 'badge-legal'}">${over > 0 ? 'Over 11h' : 'Legal'}</span>
+              <button class="btn-small btn-edit-h">Edit</button>
               <button class="btn-x" title="Delete">×</button>
             </span>
           </div>
@@ -1013,6 +1093,7 @@
           if (i > 1) d.style.color = '#fbbf24';
           det.appendChild(d);
         });
+        el.querySelector('.btn-edit-h').addEventListener('click', () => openShiftEditor(h.id));
         el.querySelector('.btn-x').addEventListener('click', () => {
           if (!confirm('Delete this shift from the logbook?')) return;
           undoSnap = { shift: clone(shift), history: clone(history) };
@@ -1022,6 +1103,103 @@
         box.appendChild(el);
       });
     }
+
+    // ---------- Edit / add logbook shifts ----------
+    let shiftEditId = null;   // null = adding a new shift
+    function ymd(ms) { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
+    function openShiftEditor(id) {
+      shiftEditId = id || null;
+      const h = id ? history.find(x => x.id === id) : null;
+      const now = Date.now();
+      $('shiftTitle').textContent = h ? 'Edit shift' : 'Add a missed shift';
+      if (h) {
+        $('shDate').value = ymd(h.clockIn);
+        $('shIn').value = hm(h.clockIn);
+        $('shOut').value = hm(h.clockOut);
+        $('shBs').value = h.breakStart ? hm(h.breakStart) : settings.breakStart;
+        $('shBe').value = h.breakEnd ? hm(h.breakEnd) : hm(atOnDay(settings.breakStart, now) + settings.breakMins * MIN);
+        $('shNoBreak').checked = !h.breakStart;
+      } else {
+        $('shDate').value = ymd(atOnDay('12:00', now, -1));
+        $('shIn').value = settings.rotaStart;
+        $('shOut').value = settings.rotaEnd;
+        $('shBs').value = settings.breakStart;
+        $('shBe').value = hm(atOnDay(settings.breakStart, now) + settings.breakMins * MIN);
+        $('shNoBreak').checked = false;
+      }
+      $('shDate').max = ymd(now);
+      $('shiftError').textContent = '';
+      updateShiftPreview();
+      $('shiftModal').classList.add('open');
+    }
+    function closeShiftEditor() { $('shiftModal').classList.remove('open'); shiftEditId = null; }
+
+    function readShiftForm() {
+      const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec($('shDate').value);
+      if (!m) return { err: 'Pick a date.' };
+      const tIn = parseHM($('shIn').value);
+      if (!tIn || !parseHM($('shOut').value)) return { err: 'Enter clock-in and clock-out times.' };
+      const clockIn = new Date(+m[1], +m[2] - 1, +m[3], tIn.h, tIn.m, 0, 0).getTime();
+      const at = v => firstAtOrAfter(v, clockIn);
+      const h = shiftEditId ? history.find(x => x.id === shiftEditId) : null;
+      const s = h ? clone(h) : { id: 's' + Date.now(), breakMins: settings.breakMins };
+      s.clockIn = clockIn;
+      s.clockOut = at($('shOut').value);
+      s.breakStartAuto = false; s.breakEndAuto = false; s.noAutoBreak = false;
+      const noBreak = $('shNoBreak').checked;
+      $('shBs').disabled = noBreak; $('shBe').disabled = noBreak;
+      if (noBreak) { s.breakStart = null; s.breakEnd = null; s.noAutoBreak = true; }
+      else {
+        if (!parseHM($('shBs').value)) return { err: 'Enter when the break started, or tick "No break taken".' };
+        s.breakStart = at($('shBs').value);
+        s.breakEnd = parseHM($('shBe').value) ? at($('shBe').value) : s.breakStart + breakLenMs(s);
+      }
+      const bad = validateShift(s, Date.now());
+      return bad ? { err: bad } : { s };
+    }
+
+    function updateShiftPreview() {
+      const { s, err } = readShiftForm();
+      const el = $('shiftPreview');
+      if (err) { el.textContent = ''; $('shiftError').textContent = err; return; }
+      $('shiftError').textContent = '';
+      const c = calc(s, s.clockOut);
+      const over = c.duty - DUTY_LIMIT_MS;
+      const notes = companyNotes(s, c);
+      el.innerHTML = '';
+      const line = (text, color) => { const d = document.createElement('div'); d.textContent = text; if (color) d.style.color = color; el.appendChild(d); };
+      line(`${dayLabel(s.clockIn)} ${hm(s.clockIn)} → ${s.clockOut - s.clockIn >= 0 && ymd(s.clockOut) !== ymd(s.clockIn) ? dayLabel(s.clockOut) + ' ' : ''}${hm(s.clockOut)} • break ${mins(c.breakTaken)} min`);
+      line(`Duty ${dur(c.duty)} — ${over > 0 ? dur(over) + ' OVER 11h' : 'legal, ' + dur(-over) + ' spare'}`, over > 0 ? '#f87171' : '#34d399');
+      notes.forEach(n => line('Company rule: ' + n, '#fbbf24'));
+    }
+
+    function saveShiftEditor() {
+      const { s, err } = readShiftForm();
+      if (err) { $('shiftError').textContent = err; return; }
+      if (!shiftEditId) {
+        const clash = history.find(x => ymd(x.clockIn) === ymd(s.clockIn));
+        if (clash && !confirm(`There's already a shift on ${dayLabel(s.clockIn)}. Add another anyway?`)) return;
+      }
+      undoSnap = { shift: clone(shift), history: clone(history) };
+      upsertHistory(s);
+      if (shift && shift.id === s.id) shift = clone(s);
+      const adding = !shiftEditId;
+      save();
+      renderHistory();
+      closeShiftEditor();
+      showToast(`${adding ? 'Added' : 'Updated'} shift on ${dayLabel(s.clockIn)}`);
+      lastPhase = '__force__';
+      tick();
+    }
+
+    ['shDate', 'shIn', 'shOut', 'shBs', 'shBe', 'shNoBreak'].forEach(id => {
+      $(id).addEventListener('input', updateShiftPreview);
+      $(id).addEventListener('change', updateShiftPreview);
+    });
+    $('addShiftBtn').addEventListener('click', () => openShiftEditor(null));
+    $('shiftCancel').addEventListener('click', closeShiftEditor);
+    $('shiftSave').addEventListener('click', saveShiftEditor);
 
     function downloadBlob(blob, name) {
       const url = URL.createObjectURL(blob);
