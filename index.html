@@ -284,6 +284,10 @@
       <span style="font-size:0.7rem; color:#60a5fa; text-transform:none;">Edit if anything's wrong</span>
     </div>
     <div class="clock-row">
+      <div><div class="clock-name">Shift start</div><div class="clock-sub" id="tlSchedSub">Usual rota start</div></div>
+      <div class="clock-right"><span class="clock-time mono" id="tlSched">--:--</span><button class="btn-edit" data-edit="schedStart">Edit</button></div>
+    </div>
+    <div class="clock-row">
       <div><div class="clock-name">Clocked in</div><div class="clock-sub" id="tlInSub">Duty starts when you start work</div></div>
       <div class="clock-right"><span class="clock-time mono" id="tlIn">--:--</span><button class="btn-edit" data-edit="clockIn">Edit</button></div>
     </div>
@@ -345,6 +349,8 @@
       <h3 id="shiftTitle">Edit shift</h3>
       <p id="shiftDesc">Times on the 24-hour clock. A clock-out earlier than the clock-in counts as the next morning.</p>
       <div class="field"><label for="shDate">Date (day you clocked in)</label><input type="date" id="shDate" /></div>
+      <div class="field"><label for="shSched">Shift start (scheduled)</label><input type="time" id="shSched" />
+        <div class="hint">Change this for a cover or swapped shift.</div></div>
       <div class="grid-2" style="margin-bottom:0;">
         <div class="field"><label for="shIn">Clocked in</label><input type="time" id="shIn" /></div>
         <div class="field"><label for="shOut">Clocked out</label><input type="time" id="shOut" /></div>
@@ -381,7 +387,7 @@
         <div class="field"><label for="setRed">Red at (mins left)</label><input type="number" id="setRed" min="0" max="180" step="5" /></div>
       </div>
       <div class="field"><label for="setGrace">Late-arrival adjustment (mins)</label><input type="number" id="setGrace" min="0" max="60" step="1" />
-        <div class="hint">Your actual arrival time is recorded and marked as within the adjustment when it is. Duty is always counted from rota start, since lateness isn't docked. 0 = off.</div></div>
+        <div class="hint">Your actual arrival time is recorded and marked as within the adjustment when it is. It applies to whatever shift you're working: for a cover or swapped shift, check "Shift start" under Today's times. Duty is always counted from the shift start, since lateness isn't docked. 0 = off.</div></div>
       <div class="error" id="settingsError"></div>
       <div class="modal-actions">
         <button class="btn-cancel" id="settingsCancel">Cancel</button>
@@ -528,11 +534,16 @@
     const breakLenMs = s => (s.breakMins != null ? s.breakMins : settings.breakMins) * MIN;
 
     function plannedBreakStart(s) {
+      if (offPattern(s)) {
+        // Cover/swapped shift: same shape as the usual rota, moved to this shift's start.
+        const b = rotaStartFor(s) + breakOffsetMs();
+        return b >= s.clockIn && b - s.clockIn <= DUTY_LIMIT_MS ? b : s.clockIn + (settings.maxStintMins || 360) * MIN;
+      }
       let t = firstAtOrAfter(settings.breakStart, s.clockIn);
       if (t - s.clockIn > DUTY_LIMIT_MS) t = s.clockIn + (settings.maxStintMins || 360) * MIN;
       return t;
     }
-    function rotaEndFor(s) { return firstAtOrAfter(settings.rotaEnd, s.clockIn); }
+    function rotaEndFor(s) { return offPattern(s) ? rotaStartFor(s) + rotaLenMs() : firstAtOrAfter(settings.rotaEnd, s.clockIn); }
 
     // Turn the plan into recorded times once they pass (auto break start / full-length break end).
     // Works on finished shifts too, so edits made after clocking out still fill in the break.
@@ -567,7 +578,31 @@
       const g = s.graceMins != null ? s.graceMins : (!s.clockOut ? settings.graceMins : 0);
       return { g: g || 0, rotaStart: s.rotaStart || settings.rotaStart };
     }
-    function rotaStartFor(s) { return nearest(graceOf(s).rotaStart, s.clockIn); }
+    // Each shift has its own scheduled start. Normally that's the usual rota start; for a cover or
+    // swapped shift it's either set by hand (s.schedStart) or assumed from the clock-in time.
+    const USUAL_EARLY_MS = 30 * MIN;
+    function usualStartFor(s) { return nearest(graceOf(s).rotaStart, s.clockIn); }
+    // Assumed start for an off-pattern shift: the half-hour mark just before the clock-in,
+    // or the next one if the clock-in is within 10 minutes of it.
+    function guessStart(clockIn) {
+      const d = new Date(floorMin(clockIn));
+      const m = d.getMinutes(), r = m % 30;
+      d.setMinutes(30 - r <= 10 ? m - r + 30 : m - r, 0, 0);
+      return d.getTime();
+    }
+    function startKind(s) {
+      if (s.schedStart != null) return 'set';
+      const usual = usualStartFor(s), ci = floorMin(s.clockIn);
+      return ci >= usual - USUAL_EARLY_MS && ci <= usual + LATE_CAP_MS ? 'usual' : 'assumed';
+    }
+    function rotaStartFor(s) {
+      const kind = startKind(s);
+      return kind === 'set' ? s.schedStart : kind === 'usual' ? usualStartFor(s) : guessStart(s.clockIn);
+    }
+    const offPattern = s => rotaStartFor(s) !== usualStartFor(s);
+    const hmToMin = v => { const p = parseHM(v); return p.h * 60 + p.m; };
+    const rotaLenMs = () => (((hmToMin(settings.rotaEnd) - hmToMin(settings.rotaStart) + 1440) % 1440) || 1440) * MIN;
+    const breakOffsetMs = () => ((hmToMin(settings.breakStart) - hmToMin(settings.rotaStart) + 1440) % 1440) * MIN;
     // Lateness isn't docked, so duty counts from rota start however late the arrival is.
     // (Beyond 2 hours it's treated as a different shift and counted from the clock-in.)
     const LATE_CAP_MS = 2 * 3600 * 1000;
@@ -831,6 +866,9 @@
       setSteps(phase, shift);
 
       // Timeline
+      $('tlSched').textContent = shift ? hm(rotaStartFor(shift)) : settings.rotaStart;
+      $('tlSchedSub').textContent = !shift ? 'Usual rota start'
+        : { set: 'Set for this shift', usual: 'Usual rota start', assumed: 'Assumed from clock-in. Edit if different' }[startKind(shift)];
       $('tlIn').textContent = hm(shift && shift.clockIn);
       const dsLive = shift ? dutyStartOf(shift) : null;
       $('tlInSub').textContent = shift && dsLive !== shift.clockIn
@@ -922,7 +960,7 @@
 
       if (c.hardStop < floorMin(rotaEnd)) {
         const why = [];
-        if (shift.clockIn < lastAtOrBefore(settings.rotaStart, shift.clockIn + 4 * 3600 * 1000)) why.push('early start');
+        if (floorMin(shift.clockIn) < rotaStartFor(shift)) why.push('early start');
         if (shift.breakEnd && shift.breakEnd - shift.breakStart < breakLenMs(shift)) why.push('short break');
         notes.push(['note-warn', `Legal finish is ${hm(c.hardStop)}, before your rota finish of ${hm(rotaEnd)}` +
           (why.length ? ` (${why.join(' + ')})` : '')]);
@@ -971,7 +1009,7 @@
     }
 
     // ---------- Edit times ----------
-    const FIELD_NAMES = { clockIn: 'Clocked in', breakStart: 'Break started', breakEnd: 'Back on duty', clockOut: 'Clocked out' };
+    const FIELD_NAMES = { schedStart: 'Shift start', clockIn: 'Clocked in', breakStart: 'Break started', breakEnd: 'Back on duty', clockOut: 'Clocked out' };
 
     function validateShift(s, now) {
       const seq = [['clockIn', s.clockIn], ['breakStart', s.breakStart], ['breakEnd', s.breakEnd], ['clockOut', s.clockOut]].filter(x => x[1] != null);
@@ -992,9 +1030,11 @@
       const current = shift && shift[field];
       let prefill = hm(Date.now());
       if (field === 'clockIn' && !shift) prefill = settings.rotaStart;
+      if (field === 'schedStart') prefill = hm(rotaStartFor(shift));
       if (field === 'clockOut' && shift && !shift.clockOut && Date.now() > rotaEndFor(shift)) prefill = hm(suggestedClockOut(shift));
       $('editInput').value = current ? hm(current) : prefill;
       const descs = {
+        schedStart: 'When this shift was due to start, e.g. for a cover or swapped shift. Your late-arrival adjustment and rota finish are worked out from it.',
         clockIn: 'When you actually started work. Starting early moves your legal finish earlier.',
         breakStart: 'When your break actually started.',
         breakEnd: 'When you went back to work. A short break moves your legal finish earlier.',
@@ -1005,7 +1045,8 @@
       const quick = $('editQuick');
       quick.innerHTML = '';
       const q = (label, fn) => { const b = document.createElement('button'); b.className = 'btn-small'; b.textContent = label; b.addEventListener('click', fn); quick.appendChild(b); };
-      q('Now', () => { $('editInput').value = hm(Date.now()); });
+      if (field !== 'schedStart') q('Now', () => { $('editInput').value = hm(Date.now()); });
+      if (field === 'schedStart') q(`Usual (${hm(usualStartFor(shift))})`, () => applyEdit({ usualStart: true }));
       if (field === 'breakStart' && shift && (shift.breakStart || !shift.noAutoBreak)) q('No break taken', () => applyEdit({ noBreak: true }));
       if (field === 'breakStart' && shift && shift.noAutoBreak) q('Use planned time', () => applyEdit({ planned: true }));
       if (field === 'breakEnd') q(`Full ${mins(breakLenMs(shift))} min`, () => applyEdit({ fullBreak: true }));
@@ -1024,6 +1065,14 @@
       else if (opts.planned) { s.noAutoBreak = false; s.breakStart = null; s.breakEnd = null; }
       else if (opts.fullBreak) { s.breakEnd = null; s.breakEndAuto = true; }
       else if (opts.clear) { s.clockOut = null; }
+      else if (opts.usualStart) { s.schedStart = usualStartFor(s); }
+      else if (field === 'schedStart') {
+        const v = $('editInput').value;
+        if (!parseHM(v)) return err('Enter a time.');
+        const t = nearest(v, s.clockIn);
+        if (Math.abs(t - s.clockIn) > 6 * 3600 * 1000) return err('Shift start should be within 6 hours of your clock-in.');
+        s.schedStart = t;
+      }
       else {
         const v = $('editInput').value;
         if (!parseHM(v)) return err('Enter a time.');
@@ -1131,7 +1180,7 @@
         const breakTxt = h.breakStart ? `${hm(h.breakStart)}–${hm(h.breakEnd)} (${mins(c.breakTaken)}m)` : 'none';
         const arr = arrivalText(h);
         const lines = [
-          [`In ${hm(h.clockIn)} • Break ${breakTxt} • Out ${hm(h.clockOut)}`, ''],
+          [`${offPattern(h) ? `Shift start ${hm(rotaStartFor(h))} • ` : ''}In ${hm(h.clockIn)} • Break ${breakTxt} • Out ${hm(h.clockOut)}`, ''],
           arr ? [arr.text, arr.ok ? '#34d399' : '#e2e8f0'] : null,
           [`Duty ${dur(c.duty)} — ${over > 0 ? dur(over) + ' over' : dur(-over) + ' under'} 11h`, over > 0 ? '#f87171' : '#e2e8f0'],
           ...notes.map(n => ['Company rule: ' + n, '#fbbf24'])
@@ -1156,6 +1205,7 @@
 
     // ---------- Edit / add logbook shifts ----------
     let shiftEditId = null;   // null = adding a new shift
+    let shSchedTouched = false;   // has the scheduled start been set by hand?
     function ymd(ms) { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 
     function openShiftEditor(id) {
@@ -1178,6 +1228,8 @@
         $('shBe').value = hm(atOnDay(settings.breakStart, now) + settings.breakMins * MIN);
         $('shNoBreak').checked = false;
       }
+      shSchedTouched = !!(h && h.schedStart != null);
+      if (shSchedTouched) $('shSched').value = hm(h.schedStart);
       $('shDate').max = ymd(now);
       $('shiftError').textContent = '';
       updateShiftPreview();
@@ -1196,6 +1248,13 @@
       const s = h ? clone(h) : { id: 's' + Date.now(), breakMins: settings.breakMins };
       if (s.graceMins == null) { s.graceMins = settings.graceMins; s.rotaStart = settings.rotaStart; }
       s.clockIn = clockIn;
+      if (shSchedTouched && parseHM($('shSched').value)) {
+        s.schedStart = nearest($('shSched').value, clockIn);
+        if (Math.abs(s.schedStart - clockIn) > 6 * 3600 * 1000) return { err: 'Shift start should be within 6 hours of the clock-in.' };
+      } else {
+        s.schedStart = null;
+        $('shSched').value = hm(rotaStartFor(s));   // follows the clock-in until set by hand
+      }
       s.clockOut = at($('shOut').value);
       s.breakStartAuto = false; s.breakEndAuto = false; s.noAutoBreak = false;
       const noBreak = $('shNoBreak').checked;
@@ -1246,7 +1305,8 @@
       tick();
     }
 
-    ['shDate', 'shIn', 'shOut', 'shBs', 'shBe', 'shNoBreak'].forEach(id => {
+    $('shSched').addEventListener('input', () => { shSchedTouched = true; });
+    ['shDate', 'shSched', 'shIn', 'shOut', 'shBs', 'shBe', 'shNoBreak'].forEach(id => {
       $(id).addEventListener('input', updateShiftPreview);
       $(id).addEventListener('change', updateShiftPreview);
     });
@@ -1313,7 +1373,7 @@
 
     $('csvBtn').addEventListener('click', () => {
       if (!history.length) { alert('No shifts to export yet.'); return; }
-      const rows = [['Date', 'Clock in', 'Rota start', 'Arrival', 'Duty counted from', 'Break start', 'Back on duty', 'Break mins', 'Clock out', 'Duty', 'vs 11h limit', 'Company rule notes']];
+      const rows = [['Date', 'Clock in', 'Shift start', 'Arrival', 'Duty counted from', 'Break start', 'Back on duty', 'Break mins', 'Clock out', 'Duty', 'vs 11h limit', 'Company rule notes']];
       history.forEach(h => {
         const c = calc(h, h.clockOut);
         const over = c.duty - DUTY_LIMIT_MS;
