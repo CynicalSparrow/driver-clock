@@ -209,6 +209,11 @@
       border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
     }
     .history-actions { display: flex; align-items: center; gap: 6px; }
+    .modal textarea {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--card-border);
+      background: var(--bg); color: var(--text); font-size: 1rem; line-height: 1.4; resize: vertical; min-height: 4.5em;
+    }
+    .note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
     .shift-preview { font-size: 0.82rem; line-height: 1.5; margin-bottom: 10px; min-height: 1.5em; }
     .btn-x { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 0 4px; }
     .backup-line { font-size: 0.75rem; color: var(--muted); margin-bottom: 10px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -303,6 +308,10 @@
       <div><div class="clock-name">Clocked out</div><div class="clock-sub" id="tlOutSub">Shift saved to logbook</div></div>
       <div class="clock-right"><span class="clock-time mono" id="tlOut">--:--</span><button class="btn-edit" data-edit="clockOut">Edit</button></div>
     </div>
+    <div class="clock-row">
+      <div style="min-width:0;"><div class="clock-name">Note</div><div class="clock-sub note-text" id="tlNote">e.g. why you were held up</div></div>
+      <div class="clock-right"><button class="btn-edit" id="noteBtn">Add</button></div>
+    </div>
   </div>
 
   <div class="section-card">
@@ -327,6 +336,20 @@
     11h duty limit: GB domestic drivers' hours rules (the law). Break timing and minimum break length are company rules, shown as warnings only.
     If your browser clears data on exit, a backup file is saved to Downloads at each clock-out. Use "Restore" to load the latest one. Not legal advice.
   </p>
+
+  <!-- Note modal -->
+  <div class="modal-backdrop" id="noteModal">
+    <div class="modal">
+      <h3>Note for this shift</h3>
+      <p>Anything worth remembering, e.g. locked out at the gate, or held up by a customer. Saved with the shift in your logbook and CSV export.</p>
+      <textarea id="noteInput" maxlength="500" rows="3"></textarea>
+      <div class="error" id="noteError"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="noteCancel">Cancel</button>
+        <button class="btn-save" id="noteSave">Save</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Edit time modal -->
   <div class="modal-backdrop" id="editModal">
@@ -358,6 +381,7 @@
         <div class="field"><label for="shBe">Back on duty</label><input type="time" id="shBe" /></div>
       </div>
       <label class="check"><input type="checkbox" id="shNoBreak" /> No break taken</label>
+      <div class="field"><label for="shNote">Note (optional)</label><textarea id="shNote" maxlength="500" rows="2"></textarea></div>
       <div class="shift-preview mono" id="shiftPreview"></div>
       <div class="error" id="shiftError"></div>
       <div class="modal-actions">
@@ -877,6 +901,8 @@
       $('tlBs').textContent = hm(shift && shift.breakStart);
       $('tlBe').textContent = hm(shift && shift.breakEnd);
       $('tlOut').textContent = hm(shift && shift.clockOut);
+      $('tlNote').textContent = shift && shift.note ? shift.note : 'e.g. why you were held up';
+      $('noteBtn').textContent = shift && shift.note ? 'Edit' : 'Add';
       $('tlBsSub').textContent = !shift ? 'Starts automatically at planned time'
         : shift.breakStart ? (shift.breakStartAuto ? 'Auto (planned time) — edit if late' : 'Recorded')
         : shift.noAutoBreak ? 'No break taken' : `Planned ${hm(plannedBreakStart(shift))}`;
@@ -1182,13 +1208,15 @@
         const lines = [
           [`${offPattern(h) ? `Shift start ${hm(rotaStartFor(h))} • ` : ''}In ${hm(h.clockIn)} • Break ${breakTxt} • Out ${hm(h.clockOut)}`, ''],
           arr ? [arr.text, arr.ok ? '#34d399' : '#e2e8f0'] : null,
+          h.note ? ['Note: ' + h.note, '#93c5fd', 'note-text'] : null,
           [`Duty ${dur(c.duty)} — ${over > 0 ? dur(over) + ' over' : dur(-over) + ' under'} 11h`, over > 0 ? '#f87171' : '#e2e8f0'],
           ...notes.map(n => ['Company rule: ' + n, '#fbbf24'])
         ].filter(Boolean);
         const det = el.querySelector('.history-details');
-        lines.forEach(([t, color]) => {
+        lines.forEach(([t, color, cls]) => {
           const d = document.createElement('div');
           d.textContent = t;
+          if (cls) d.className = cls;
           if (color) d.style.color = color;
           det.appendChild(d);
         });
@@ -1228,6 +1256,7 @@
         $('shBe').value = hm(atOnDay(settings.breakStart, now) + settings.breakMins * MIN);
         $('shNoBreak').checked = false;
       }
+      $('shNote').value = (h && h.note) || '';
       shSchedTouched = !!(h && h.schedStart != null);
       if (shSchedTouched) $('shSched').value = hm(h.schedStart);
       $('shDate').max = ymd(now);
@@ -1257,6 +1286,7 @@
       }
       s.clockOut = at($('shOut').value);
       s.breakStartAuto = false; s.breakEndAuto = false; s.noAutoBreak = false;
+      setNote(s, $('shNote').value);
       const noBreak = $('shNoBreak').checked;
       $('shBs').disabled = noBreak; $('shBe').disabled = noBreak;
       if (noBreak) { s.breakStart = null; s.breakEnd = null; s.noAutoBreak = true; }
@@ -1313,6 +1343,29 @@
     $('addShiftBtn').addEventListener('click', () => openShiftEditor(null));
     $('shiftCancel').addEventListener('click', closeShiftEditor);
     $('shiftSave').addEventListener('click', saveShiftEditor);
+
+    // ---------- Shift notes ----------
+    function setNote(s, text) {
+      const t = String(text || '').trim().slice(0, 500);
+      if (t) s.note = t; else delete s.note;
+    }
+    $('noteBtn').addEventListener('click', () => {
+      if (!shift) { alert('Clock in first. To add a note to an earlier shift, tap Edit on it in the logbook.'); return; }
+      $('noteInput').value = shift.note || '';
+      $('noteModal').classList.add('open');
+      $('noteInput').focus();
+    });
+    $('noteCancel').addEventListener('click', () => $('noteModal').classList.remove('open'));
+    $('noteSave').addEventListener('click', () => {
+      undoSnap = { shift: clone(shift), history: clone(history) };
+      setNote(shift, $('noteInput').value);
+      if (shift.clockOut) upsertHistory(shift);
+      save();
+      renderHistory();
+      $('noteModal').classList.remove('open');
+      showToast(shift.note ? 'Note saved' : 'Note removed');
+      tick();
+    });
 
     function downloadBlob(blob, name) {
       const url = URL.createObjectURL(blob);
@@ -1373,7 +1426,7 @@
 
     $('csvBtn').addEventListener('click', () => {
       if (!history.length) { alert('No shifts to export yet.'); return; }
-      const rows = [['Date', 'Clock in', 'Shift start', 'Arrival', 'Duty counted from', 'Break start', 'Back on duty', 'Break mins', 'Clock out', 'Duty', 'vs 11h limit', 'Company rule notes']];
+      const rows = [['Date', 'Clock in', 'Shift start', 'Arrival', 'Duty counted from', 'Break start', 'Back on duty', 'Break mins', 'Clock out', 'Duty', 'vs 11h limit', 'Company rule notes', 'Note']];
       history.forEach(h => {
         const c = calc(h, h.clockOut);
         const over = c.duty - DUTY_LIMIT_MS;
@@ -1383,7 +1436,7 @@
         rows.push([
           new Date(h.clockIn).toLocaleDateString('en-GB'), hm(h.clockIn), hm(rs), arrival, hm(ds),
           h.breakStart ? hm(h.breakStart) : '', h.breakEnd ? hm(h.breakEnd) : '', mins(c.breakTaken), hm(h.clockOut), dur(c.duty),
-          over > 0 ? `OVER by ${dur(over)}` : `under by ${dur(-over)}`, companyNotes(h, c).join('; ')
+          over > 0 ? `OVER by ${dur(over)}` : `under by ${dur(-over)}`, companyNotes(h, c).join('; '), h.note || ''
         ]);
       });
       const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
